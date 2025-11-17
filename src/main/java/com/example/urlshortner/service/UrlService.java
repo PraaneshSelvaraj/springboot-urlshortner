@@ -1,0 +1,123 @@
+package com.example.urlshortner.service;
+
+import com.example.urlshortner.exception.*;
+import com.example.urlshortner.model.Url;
+import com.example.urlshortner.repostiory.UrlRepository;
+import java.net.URI;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.NoSuchElementException;
+import java.util.Optional;
+import java.util.Random;
+import java.util.Set;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Service;
+
+@Service
+public class UrlService {
+  private UrlRepository urlRepo;
+  private static final Random random = new Random();
+
+  @Value("${bannedHosts}")
+  private Set<String> bannedHosts;
+
+  @Value("${urlExpirationHours}")
+  private int urlExpirationHours;
+
+  @Value("${notification.threshold}")
+  private int notificationThreshold;
+
+  public UrlService(UrlRepository urlRepo) {
+    this.urlRepo = urlRepo;
+  }
+
+  public Url addUrl(String url) {
+    if (!isValidUrl(url)) {
+      throw new InvalidUrlException();
+    }
+
+    String code = generateShortCode(7);
+    LocalDateTime currentTime = LocalDateTime.now();
+    LocalDateTime expiresAt = currentTime.plusHours(urlExpirationHours);
+
+    Url newUrl = new Url();
+    newUrl.setShortCode(code);
+    newUrl.setLongUrl(url);
+    newUrl.setClicks(0);
+    newUrl.setDeleted(false);
+    newUrl.setCreatedAt(currentTime);
+    newUrl.setUpdatedAt(currentTime);
+    newUrl.setExpiresAt(expiresAt);
+
+    return urlRepo.save(newUrl);
+  }
+
+  public List<Url> getUrls() {
+    return urlRepo.findAll();
+  }
+
+  public Url redirect(String shortCode) {
+    Optional<Url> urlOpt = urlRepo.findByShortCode(shortCode);
+
+    Url url =
+        urlOpt.orElseThrow(
+            () ->
+                new NoSuchElementException("Url with shortcode " + shortCode + " does not exist"));
+
+    LocalDateTime currentTime = LocalDateTime.now();
+    if (url.getExpiresAt() != null && currentTime.isAfter(url.getExpiresAt())) {
+      throw new UrlExpiredException();
+    }
+
+    urlRepo.incrementClickCount(shortCode);
+    Integer count = urlRepo.getClickCount(shortCode);
+
+    if (count != null && count > notificationThreshold) {
+      throw new ThresholdReachedException();
+    }
+
+    return url;
+  }
+
+  public void deleteUrl(String shortCode) {
+    Optional<Url> urlOpt = urlRepo.findByShortCode(shortCode);
+
+    Url url =
+        urlOpt.orElseThrow(
+            () -> new NoSuchElementException("URL with short code '" + shortCode + "' not found"));
+
+    urlRepo.delete(url);
+  }
+
+  private String getRandomString(int length) {
+    StringBuilder sb = new StringBuilder();
+    while (sb.length() < length) {
+      char c = (char) (random.nextInt(95) + 32);
+      if (Character.isLetterOrDigit(c)) {
+        sb.append(c);
+      }
+    }
+    return sb.toString();
+  }
+
+  private String generateShortCode(int length) {
+    String code = getRandomString(length);
+    Optional<Url> existing = urlRepo.findByShortCode(code);
+
+    if (existing.isEmpty()) {
+      return code;
+    } else {
+      return generateShortCode(length);
+    }
+  }
+
+  private boolean isValidUrl(String url) {
+    try {
+      URI uri = new URI(url);
+      String host = uri.getHost();
+      return host != null && !bannedHosts.contains(host);
+    } catch (Exception e) {
+      return false;
+    }
+  }
+}
