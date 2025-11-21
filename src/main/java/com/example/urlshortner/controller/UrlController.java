@@ -1,6 +1,7 @@
 package com.example.urlshortner.controller;
 
 import com.example.urlshortner.dto.ShortenRequest;
+import com.example.urlshortner.dto.UrlDto;
 import com.example.urlshortner.model.Url;
 import com.example.urlshortner.service.UrlService;
 import java.net.URI;
@@ -12,15 +13,15 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 public class UrlController {
 
-  private UrlService urlService;
+  private final UrlService urlService;
 
   public UrlController(UrlService urlService) {
     this.urlService = urlService;
   }
 
   @PostMapping("/urls")
-  public ResponseEntity<Url> addUrl(@RequestBody ShortenRequest request) {
-    Url newUrl = urlService.addUrl(request.getUrl());
+  public ResponseEntity<UrlDto> addUrl(@RequestBody ShortenRequest request) {
+    UrlDto newUrl = urlService.addUrl(request.getUrl());
 
     return new ResponseEntity<>(newUrl, HttpStatus.CREATED);
   }

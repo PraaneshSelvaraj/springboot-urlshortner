@@ -1,8 +1,9 @@
 package com.example.urlshortner.service;
 
+import com.example.urlshortner.dto.UrlDto;
 import com.example.urlshortner.exception.*;
 import com.example.urlshortner.model.Url;
-import com.example.urlshortner.repostiory.UrlRepository;
+import com.example.urlshortner.repository.UrlRepository;
 import java.net.URI;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -15,7 +16,7 @@ import org.springframework.stereotype.Service;
 
 @Service
 public class UrlService {
-  private UrlRepository urlRepo;
+  private final UrlRepository urlRepo;
   private static final Random random = new Random();
 
   @Value("${bannedHosts}")
@@ -27,11 +28,14 @@ public class UrlService {
   @Value("${notification.threshold}")
   private int notificationThreshold;
 
+  @Value("${app.base-url}")
+  private String baseUrl;
+
   public UrlService(UrlRepository urlRepo) {
     this.urlRepo = urlRepo;
   }
 
-  public Url addUrl(String url) {
+  public UrlDto addUrl(String url) {
     if (!isValidUrl(url)) {
       throw new InvalidUrlException();
     }
@@ -49,7 +53,18 @@ public class UrlService {
     newUrl.setUpdatedAt(currentTime);
     newUrl.setExpiresAt(expiresAt);
 
-    return urlRepo.save(newUrl);
+    Url urlAdded = urlRepo.save(newUrl);
+    UrlDto urlDto = new UrlDto();
+    urlDto.setId(urlAdded.getId());
+    urlDto.setLongUrl(url);
+    urlDto.setShortCode(code);
+    urlDto.setShortUrl(baseUrl + "/" + code);
+    urlDto.setClicks(0);
+    urlDto.setCreatedAt(currentTime);
+    urlDto.setUpdatedAt(currentTime);
+    urlDto.setExpiresAt(expiresAt);
+
+    return urlDto;
   }
 
   public List<Url> getUrls() {
