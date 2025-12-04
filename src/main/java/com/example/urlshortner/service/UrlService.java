@@ -4,6 +4,7 @@ import com.example.urlshortner.dto.UrlDto;
 import com.example.urlshortner.exception.*;
 import com.example.urlshortner.model.Url;
 import com.example.urlshortner.repository.UrlRepository;
+import java.net.InetAddress;
 import java.net.URI;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -149,8 +150,24 @@ public class UrlService {
   private boolean isValidUrl(String url) {
     try {
       URI uri = new URI(url);
+
+      String scheme = uri.getScheme();
+      if (!(scheme.equals("http") || scheme.equals("https"))) {
+        return false;
+      }
+
       String host = uri.getHost();
-      return host != null && !bannedHosts.contains(host);
+      if (host == null && bannedHosts.contains(host)) {
+        return false;
+      }
+
+      try {
+        InetAddress.getByName(uri.getHost());
+      } catch (Exception e) {
+        return false;
+      }
+
+      return true;
     } catch (Exception e) {
       return false;
     }
