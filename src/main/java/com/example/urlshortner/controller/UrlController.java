@@ -6,8 +6,8 @@ import com.example.urlshortner.model.Url;
 import com.example.urlshortner.service.UrlService;
 import java.net.URI;
 import java.time.Instant;
-import java.util.List;
 import java.util.Map;
+import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -41,8 +41,10 @@ public class UrlController {
   }
 
   @GetMapping("/urls")
-  public ResponseEntity<List<Url>> getUrls() {
-    List<Url> urls = urlService.getUrls();
+  public ResponseEntity<Page<Url>> getUrls(
+      @RequestParam(defaultValue = "0") int pageNo,
+      @RequestParam(defaultValue = "10") int pageSize) {
+    Page<Url> urls = urlService.getUrls(pageNo, pageSize);
     return new ResponseEntity<>(urls, HttpStatus.OK);
   }
 

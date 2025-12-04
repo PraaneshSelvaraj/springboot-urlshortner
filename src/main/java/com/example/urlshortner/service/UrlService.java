@@ -7,12 +7,14 @@ import com.example.urlshortner.repository.UrlRepository;
 import java.net.InetAddress;
 import java.net.URI;
 import java.time.LocalDateTime;
-import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.Random;
 import java.util.Set;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -68,8 +70,9 @@ public class UrlService {
     return urlDto;
   }
 
-  public List<Url> getUrls() {
-    return urlRepo.findAll();
+  public Page<Url> getUrls(int pageNo, int pageSize) {
+    Pageable pageable = PageRequest.of(pageNo, pageSize);
+    return urlRepo.findAll(pageable);
   }
 
   public UrlDto getUrlByShortCode(String shortCode) {
