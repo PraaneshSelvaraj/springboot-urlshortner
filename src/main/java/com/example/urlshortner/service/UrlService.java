@@ -71,6 +71,26 @@ public class UrlService {
     return urlRepo.findAll();
   }
 
+  public UrlDto getUrlByShortCode(String shortCode) {
+    Optional<Url> urlOpt = urlRepo.findByShortCode(shortCode);
+    Url url =
+        urlOpt.orElseThrow(
+            () ->
+                new NoSuchElementException("Url with shortcocde " + shortCode + " does not exist"));
+
+    UrlDto urlDto = new UrlDto();
+    urlDto.setId(url.getId());
+    urlDto.setLongUrl(url.getLongUrl());
+    urlDto.setShortCode(url.getShortCode());
+    urlDto.setShortUrl(baseUrl + "/" + url.getShortCode());
+    urlDto.setClicks(url.getClicks());
+    urlDto.setCreatedAt(url.getCreatedAt());
+    urlDto.setUpdatedAt(url.getUpdatedAt());
+    urlDto.setExpiresAt(url.getExpiresAt());
+
+    return urlDto;
+  }
+
   public Url redirect(String shortCode) {
     Optional<Url> urlOpt = urlRepo.findByShortCode(shortCode);
 

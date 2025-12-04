@@ -5,7 +5,9 @@ import com.example.urlshortner.dto.UrlDto;
 import com.example.urlshortner.model.Url;
 import com.example.urlshortner.service.UrlService;
 import java.net.URI;
+import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -19,18 +21,35 @@ public class UrlController {
     this.urlService = urlService;
   }
 
+  @GetMapping("/health")
+  public ResponseEntity<Map<String, String>> health() {
+    return new ResponseEntity<>(
+        Map.of(
+            "status",
+            "OK",
+            "message",
+            "Rest Service is running.",
+            "timestamp",
+            Instant.now().toString()),
+        HttpStatus.OK);
+  }
+
   @PostMapping("/urls")
   public ResponseEntity<UrlDto> addUrl(@RequestBody ShortenRequest request) {
     UrlDto newUrl = urlService.addUrl(request.getUrl());
-
     return new ResponseEntity<>(newUrl, HttpStatus.CREATED);
   }
 
   @GetMapping("/urls")
   public ResponseEntity<List<Url>> getUrls() {
     List<Url> urls = urlService.getUrls();
-
     return new ResponseEntity<>(urls, HttpStatus.OK);
+  }
+
+  @GetMapping("/urls/{shortCode}")
+  public ResponseEntity<UrlDto> getUrlByShortCode(@PathVariable String shortCode) {
+    UrlDto urlDto = urlService.getUrlByShortCode(shortCode);
+    return new ResponseEntity<>(urlDto, HttpStatus.OK);
   }
 
   @DeleteMapping("/urls/{shortCode}")
