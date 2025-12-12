@@ -1,0 +1,60 @@
+syntax = "proto3";
+
+package notification;
+
+import "google/protobuf/timestamp.proto";
+
+option java_multiple_files = true;
+option java_package = "com.example.grpc.notification";
+option java_outer_classname = "NotificationProto";
+
+enum NotificationType {
+  NEWURL = 0;
+  THRESHOLD = 1;
+  NEWUSER = 2;
+}
+
+enum NotificationStatus {
+  SUCCESS = 0;
+  PENDING = 1;
+  FAILURE = 2;
+}
+
+message NotificationRequest {
+  NotificationType notificationType = 1;
+  string message = 2;
+  optional string shortCode = 3;
+}
+
+message NotificationReply {
+  bool success = 1;
+  string message = 2;
+  NotificationStatus notificationStatus = 3;
+}
+
+message Notification {
+  int64 id = 1;
+  optional string shortCode = 2;
+  NotificationType notificationType = 4;
+  NotificationStatus notificationStatus = 5;
+  string message = 6;
+  google.protobuf.Timestamp createdAt = 7;
+}
+
+message GetNotificationsRequest{
+  optional int32 pageNo = 1;
+  optional int32 pageSize = 2;
+}
+
+message GetNotificationsResponse {
+  repeated Notification notifications = 1;
+  int32 totalPages = 2;
+  int64 totalElements = 3;
+  int32 pageNo = 4;
+  int32 pageSize = 5;
+}
+
+service NotificationService {
+  rpc notify(NotificationRequest) returns (NotificationReply);
+  rpc getNotifications(GetNotificationsRequest) returns (GetNotificationsResponse);
+}
