@@ -21,7 +21,7 @@ import org.springframework.stereotype.Service;
 @Service
 public class UrlService {
   private final UrlRepository urlRepo;
-  private final NotificationSerivce notificationSerivce;
+  private final NotificationService notificationService;
 
   private static final Random random = new Random();
 
@@ -37,9 +37,9 @@ public class UrlService {
   @Value("${app.base-url}")
   private String baseUrl;
 
-  public UrlService(UrlRepository urlRepo, NotificationSerivce notificationSerivce) {
+  public UrlService(UrlRepository urlRepo, NotificationService notificationService) {
     this.urlRepo = urlRepo;
-    this.notificationSerivce = notificationSerivce;
+    this.notificationService = notificationService;
   }
 
   public UrlDto addUrl(String url) {
@@ -61,7 +61,7 @@ public class UrlService {
     newUrl.setExpiresAt(expiresAt);
 
     Url urlAdded = urlRepo.save(newUrl);
-    notificationSerivce.sendUrlCreatedNotification(code, url);
+    notificationService.sendUrlCreatedNotification(code, url);
 
     UrlDto urlDto = new UrlDto();
     urlDto.setId(urlAdded.getId());
@@ -118,7 +118,7 @@ public class UrlService {
     Integer count = urlRepo.getClickCount(shortCode);
 
     if (count != null && count > notificationThreshold) {
-      notificationSerivce.sendThresholdNotification(shortCode);
+      notificationService.sendThresholdNotification(shortCode);
       throw new ThresholdReachedException();
     }
 

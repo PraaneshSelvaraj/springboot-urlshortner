@@ -1,7 +1,7 @@
 package com.example.controller;
 
 import com.example.dto.PagedNotificationsDto;
-import com.example.service.NotificationSerivce;
+import com.example.service.NotificationService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -11,10 +11,10 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 public class NotificationController {
 
-  private final NotificationSerivce notificationSerivce;
+  private final NotificationService notificationService;
 
-  public NotificationController(NotificationSerivce notificationSerivce) {
-    this.notificationSerivce = notificationSerivce;
+  public NotificationController(NotificationService notificationService) {
+    this.notificationService = notificationService;
   }
 
   @GetMapping("/notifications")
@@ -30,7 +30,7 @@ public class NotificationController {
     }
 
     PagedNotificationsDto pagedNotificationsDto =
-        notificationSerivce.getNotifications(pageNo, pageSize);
+        notificationService.getNotifications(pageNo, pageSize);
     return new ResponseEntity<>(pagedNotificationsDto, HttpStatus.OK);
   }
 }

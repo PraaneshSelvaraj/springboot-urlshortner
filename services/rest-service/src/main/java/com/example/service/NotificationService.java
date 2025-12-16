@@ -9,10 +9,10 @@ import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 
 @Service
-public class NotificationSerivce {
+public class NotificationService {
   private final GrpcNotificationClient notificationClient;
 
-  public NotificationSerivce(GrpcNotificationClient notificationClient) {
+  public NotificationService(GrpcNotificationClient notificationClient) {
     this.notificationClient = notificationClient;
   }
 
