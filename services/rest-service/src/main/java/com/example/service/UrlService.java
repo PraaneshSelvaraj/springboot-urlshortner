@@ -166,8 +166,13 @@ public class UrlService {
         return false;
       }
 
+      URI baseUri = new URI(baseUrl);
+      if (uri.getHost().equalsIgnoreCase(baseUri.getHost())) {
+        return false;
+      }
+
       String host = uri.getHost();
-      if (host == null && bannedHosts.contains(host)) {
+      if (host == null || bannedHosts.contains(host)) {
         return false;
       }
 

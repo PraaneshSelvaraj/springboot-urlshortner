@@ -18,10 +18,8 @@ import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
-import org.springframework.test.context.TestPropertySource;
 
 @DataJpaTest
-@TestPropertySource(locations = "classpath:application.properties")
 @DisplayName("NotificationRepository Tests")
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.ANY)
 class NotificationRepositoryTest {
