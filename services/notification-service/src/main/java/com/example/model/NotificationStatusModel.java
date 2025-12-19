@@ -15,5 +15,6 @@ public class NotificationStatusModel {
   @GeneratedValue(strategy = GenerationType.IDENTITY)
   private Integer id;
 
+  @Column(unique = true, nullable = false)
   private String name;
 }
