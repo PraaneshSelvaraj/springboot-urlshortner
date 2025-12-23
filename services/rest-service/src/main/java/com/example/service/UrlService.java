@@ -69,6 +69,7 @@ public class UrlService {
     urlDto.setShortCode(code);
     urlDto.setShortUrl(baseUrl + "/" + code);
     urlDto.setClicks(0);
+    urlDto.setExpired(false);
     urlDto.setCreatedAt(currentTime);
     urlDto.setUpdatedAt(currentTime);
     urlDto.setExpiresAt(expiresAt);
@@ -94,6 +95,8 @@ public class UrlService {
     urlDto.setShortCode(url.getShortCode());
     urlDto.setShortUrl(baseUrl + "/" + url.getShortCode());
     urlDto.setClicks(url.getClicks());
+    urlDto.setExpired(
+        url.getExpiresAt() != null && LocalDateTime.now().isAfter(url.getExpiresAt()));
     urlDto.setCreatedAt(url.getCreatedAt());
     urlDto.setUpdatedAt(url.getUpdatedAt());
     urlDto.setExpiresAt(url.getExpiresAt());

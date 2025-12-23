@@ -34,13 +34,13 @@ public class UrlController {
         HttpStatus.OK);
   }
 
-  @PostMapping("/urls")
+  @PostMapping("/api/urls")
   public ResponseEntity<UrlDto> addUrl(@RequestBody ShortenRequest request) {
     UrlDto newUrl = urlService.addUrl(request.getUrl());
     return new ResponseEntity<>(newUrl, HttpStatus.CREATED);
   }
 
-  @GetMapping("/urls")
+  @GetMapping("/api/urls")
   public ResponseEntity<Page<Url>> getUrls(
       @RequestParam(defaultValue = "0") int pageNo,
       @RequestParam(defaultValue = "10") int pageSize) {
@@ -56,13 +56,13 @@ public class UrlController {
     return new ResponseEntity<>(urls, HttpStatus.OK);
   }
 
-  @GetMapping("/urls/{shortCode}")
+  @GetMapping("/api/urls/{shortCode}")
   public ResponseEntity<UrlDto> getUrlByShortCode(@PathVariable String shortCode) {
     UrlDto urlDto = urlService.getUrlByShortCode(shortCode);
     return new ResponseEntity<>(urlDto, HttpStatus.OK);
   }
 
-  @DeleteMapping("/urls/{shortCode}")
+  @DeleteMapping("/api/urls/{shortCode}")
   public ResponseEntity<Void> deleteUrl(@PathVariable String shortCode) {
     urlService.deleteUrl(shortCode);
     return ResponseEntity.noContent().build();

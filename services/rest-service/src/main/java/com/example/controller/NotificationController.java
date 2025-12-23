@@ -17,7 +17,7 @@ public class NotificationController {
     this.notificationService = notificationService;
   }
 
-  @GetMapping("/notifications")
+  @GetMapping("/api/notifications")
   public ResponseEntity<PagedNotificationsDto> getNotifications(
       @RequestParam(defaultValue = "0") int pageNo,
       @RequestParam(defaultValue = "10") int pageSize) {

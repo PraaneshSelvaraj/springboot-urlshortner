@@ -10,6 +10,7 @@ public class UrlDto {
   private String shortCode;
   private String shortUrl;
   private int clicks;
+  private boolean expired;
   private LocalDateTime createdAt;
   private LocalDateTime updatedAt;
   private LocalDateTime expiresAt;

@@ -27,16 +27,12 @@ class GlobalExceptionHandlerTest {
   void shouldHandleInvalidUrlExceptionAndReturn400() throws Exception {
     String invalidUrl = "not-a-valid-url";
 
-    Mockito.when(urlService.addUrl(Mockito.anyString()))
-        .thenThrow(new InvalidUrlException());
+    Mockito.when(urlService.addUrl(Mockito.anyString())).thenThrow(new InvalidUrlException());
 
     String requestBody = "{\"url\":\"" + invalidUrl + "\"}";
 
     mockMvc
-        .perform(
-            post("/urls")
-                .contentType("application/json")
-                .content(requestBody))
+        .perform(post("/api/urls").contentType("application/json").content(requestBody))
         .andExpect(status().isBadRequest())
         .andExpect(jsonPath("$.status").value(400))
         .andExpect(jsonPath("$.message").value("Invalid URL provided"));
@@ -51,7 +47,7 @@ class GlobalExceptionHandlerTest {
         .thenThrow(new NoSuchElementException("URL not found"));
 
     mockMvc
-        .perform(get("/urls/{shortCode}", shortCode))
+        .perform(get("/api/urls/{shortCode}", shortCode))
         .andExpect(status().isNotFound())
         .andExpect(jsonPath("$.status").value(404))
         .andExpect(jsonPath("$.message").value("URL not found"));
@@ -62,8 +58,7 @@ class GlobalExceptionHandlerTest {
   void shouldHandleUrlExpiredExceptionAndReturn410() throws Exception {
     String shortCode = "expired123";
 
-    Mockito.when(urlService.redirect(shortCode))
-        .thenThrow(new UrlExpiredException());
+    Mockito.when(urlService.redirect(shortCode)).thenThrow(new UrlExpiredException());
 
     mockMvc
         .perform(get("/{shortCode}", shortCode))
@@ -77,8 +72,7 @@ class GlobalExceptionHandlerTest {
   void shouldHandleThresholdReachedExceptionAndReturn429() throws Exception {
     String shortCode = "popular123";
 
-    Mockito.when(urlService.redirect(shortCode))
-        .thenThrow(new ThresholdReachedException());
+    Mockito.when(urlService.redirect(shortCode)).thenThrow(new ThresholdReachedException());
 
     mockMvc
         .perform(get("/{shortCode}", shortCode))
@@ -94,7 +88,7 @@ class GlobalExceptionHandlerTest {
         .thenThrow(new RuntimeException("Unexpected error"));
 
     mockMvc
-        .perform(get("/urls").param("pageNo", "0").param("pageSize", "10"))
+        .perform(get("/api/urls").param("pageNo", "0").param("pageSize", "10"))
         .andExpect(status().isInternalServerError())
         .andExpect(jsonPath("$.status").value(500))
         .andExpect(jsonPath("$.message").value("An unexpected error occurred: Unexpected error"));
@@ -104,25 +98,23 @@ class GlobalExceptionHandlerTest {
   @DisplayName("Should handle IllegalArgumentException and return 500 INTERNAL SERVER ERROR")
   void shouldHandleIllegalArgumentExceptionAndReturn500() throws Exception {
     mockMvc
-        .perform(get("/urls").param("pageNo", "-1").param("pageSize", "10"))
+        .perform(get("/api/urls").param("pageNo", "-1").param("pageSize", "10"))
         .andExpect(status().isInternalServerError())
         .andExpect(jsonPath("$.status").value(500))
-        .andExpect(jsonPath("$.message").value("An unexpected error occurred: Page number cannot be negative"));
+        .andExpect(
+            jsonPath("$.message")
+                .value("An unexpected error occurred: Page number cannot be negative"));
   }
 
   @Test
   @DisplayName("Should return error response with correct structure for InvalidUrlException")
   void shouldReturnErrorResponseWithCorrectStructureForInvalidUrl() throws Exception {
-    Mockito.when(urlService.addUrl(Mockito.anyString()))
-        .thenThrow(new InvalidUrlException());
+    Mockito.when(urlService.addUrl(Mockito.anyString())).thenThrow(new InvalidUrlException());
 
     String requestBody = "{\"url\":\"invalid\"}";
 
     mockMvc
-        .perform(
-            post("/urls")
-                .contentType("application/json")
-                .content(requestBody))
+        .perform(post("/api/urls").contentType("application/json").content(requestBody))
         .andExpect(status().isBadRequest())
         .andExpect(jsonPath("$.status").exists())
         .andExpect(jsonPath("$.message").exists())
@@ -136,10 +128,11 @@ class GlobalExceptionHandlerTest {
     String shortCode = "notexists";
 
     Mockito.doThrow(new NoSuchElementException("URL not found"))
-        .when(urlService).deleteUrl(shortCode);
+        .when(urlService)
+        .deleteUrl(shortCode);
 
     mockMvc
-        .perform(delete("/urls/{shortCode}", shortCode))
+        .perform(delete("/api/urls/{shortCode}", shortCode))
         .andExpect(status().isNotFound())
         .andExpect(jsonPath("$.status").value(404))
         .andExpect(jsonPath("$.message").value("URL not found"));
@@ -158,12 +151,12 @@ class GlobalExceptionHandlerTest {
         .thenThrow(new NoSuchElementException("URL with shortcode xyz789 does not exist"));
 
     mockMvc
-        .perform(get("/urls/{shortCode}", shortCode1))
+        .perform(get("/api/urls/{shortCode}", shortCode1))
         .andExpect(status().isNotFound())
         .andExpect(jsonPath("$.message").value("URL with shortcode abc123 does not exist"));
 
     mockMvc
-        .perform(get("/urls/{shortCode}", shortCode2))
+        .perform(get("/api/urls/{shortCode}", shortCode2))
         .andExpect(status().isNotFound())
         .andExpect(jsonPath("$.message").value("URL with shortcode xyz789 does not exist"));
   }
@@ -177,7 +170,7 @@ class GlobalExceptionHandlerTest {
         .thenThrow(new RuntimeException(customMessage));
 
     mockMvc
-        .perform(get("/urls").param("pageNo", "0").param("pageSize", "10"))
+        .perform(get("/api/urls").param("pageNo", "0").param("pageSize", "10"))
         .andExpect(status().isInternalServerError())
         .andExpect(jsonPath("$.message").value("An unexpected error occurred: " + customMessage));
   }

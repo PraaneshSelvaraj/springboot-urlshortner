@@ -60,7 +60,7 @@ class UrlControllerTest {
     String requestBody = "{\"url\":\"" + longUrl + "\"}";
 
     mockMvc
-        .perform(post("/urls").contentType(MediaType.APPLICATION_JSON).content(requestBody))
+        .perform(post("/api/urls").contentType(MediaType.APPLICATION_JSON).content(requestBody))
         .andExpect(status().isCreated())
         .andExpect(jsonPath("$.id").value(1))
         .andExpect(jsonPath("$.longUrl").value(longUrl))
@@ -91,7 +91,7 @@ class UrlControllerTest {
     when(urlService.getUrls(0, 10)).thenReturn(urlPage);
 
     mockMvc
-        .perform(get("/urls").param("pageNo", "0").param("pageSize", "10"))
+        .perform(get("/api/urls").param("pageNo", "0").param("pageSize", "10"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.content").isArray())
         .andExpect(jsonPath("$.content[0].shortCode").value("abc123"))
@@ -108,7 +108,7 @@ class UrlControllerTest {
     when(urlService.getUrls(0, 10)).thenReturn(emptyPage);
 
     mockMvc
-        .perform(get("/urls"))
+        .perform(get("/api/urls"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.content").isArray());
 
@@ -119,7 +119,7 @@ class UrlControllerTest {
   @DisplayName("Should throw exception when page number is negative")
   void shouldThrowExceptionWhenPageNumberIsNegative() throws Exception {
     mockMvc
-        .perform(get("/urls").param("pageNo", "-1").param("pageSize", "10"))
+        .perform(get("/api/urls").param("pageNo", "-1").param("pageSize", "10"))
         .andExpect(status().isInternalServerError())
         .andExpect(
             jsonPath("$.message")
@@ -132,7 +132,7 @@ class UrlControllerTest {
   @DisplayName("Should throw exception when page size is zero")
   void shouldThrowExceptionWhenPageSizeIsZero() throws Exception {
     mockMvc
-        .perform(get("/urls").param("pageNo", "0").param("pageSize", "0"))
+        .perform(get("/api/urls").param("pageNo", "0").param("pageSize", "0"))
         .andExpect(status().isInternalServerError())
         .andExpect(
             jsonPath("$.message")
@@ -145,7 +145,7 @@ class UrlControllerTest {
   @DisplayName("Should throw exception when page size is negative")
   void shouldThrowExceptionWhenPageSizeIsNegative() throws Exception {
     mockMvc
-        .perform(get("/urls").param("pageNo", "0").param("pageSize", "-5"))
+        .perform(get("/api/urls").param("pageNo", "0").param("pageSize", "-5"))
         .andExpect(status().isInternalServerError())
         .andExpect(
             jsonPath("$.message")
@@ -169,7 +169,7 @@ class UrlControllerTest {
     when(urlService.getUrlByShortCode(shortCode)).thenReturn(urlDto);
 
     mockMvc
-        .perform(get("/urls/{shortCode}", shortCode))
+        .perform(get("/api/urls/{shortCode}", shortCode))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.shortCode").value(shortCode))
         .andExpect(jsonPath("$.longUrl").value("https://www.example.com"))
@@ -186,7 +186,7 @@ class UrlControllerTest {
     when(urlService.getUrlByShortCode(shortCode))
         .thenThrow(new NoSuchElementException("URL not found"));
 
-    mockMvc.perform(get("/urls/{shortCode}", shortCode)).andExpect(status().isNotFound());
+    mockMvc.perform(get("/api/urls/{shortCode}", shortCode)).andExpect(status().isNotFound());
 
     verify(urlService).getUrlByShortCode(shortCode);
   }
@@ -199,7 +199,7 @@ class UrlControllerTest {
     doNothing().when(urlService).deleteUrl(shortCode);
 
     mockMvc
-        .perform(delete("/urls/{shortCode}", shortCode))
+        .perform(delete("/api/urls/{shortCode}", shortCode))
         .andExpect(status().isNoContent())
         .andExpect(content().string(""));
 
@@ -213,7 +213,7 @@ class UrlControllerTest {
 
     doThrow(new NoSuchElementException("URL not found")).when(urlService).deleteUrl(shortCode);
 
-    mockMvc.perform(delete("/urls/{shortCode}", shortCode)).andExpect(status().isNotFound());
+    mockMvc.perform(delete("/api/urls/{shortCode}", shortCode)).andExpect(status().isNotFound());
 
     verify(urlService).deleteUrl(shortCode);
   }
@@ -259,7 +259,7 @@ class UrlControllerTest {
     when(urlService.getUrls(0, 1000)).thenReturn(emptyPage);
 
     mockMvc
-        .perform(get("/urls").param("pageNo", "0").param("pageSize", "1000"))
+        .perform(get("/api/urls").param("pageNo", "0").param("pageSize", "1000"))
         .andExpect(status().isOk());
 
     verify(urlService).getUrls(0, 1000);
@@ -273,7 +273,7 @@ class UrlControllerTest {
     when(urlService.getUrls(0, 10)).thenReturn(emptyPage);
 
     mockMvc
-        .perform(get("/urls"))
+        .perform(get("/api/urls"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.content").isArray())
         .andExpect(jsonPath("$.content").isEmpty());
@@ -299,7 +299,7 @@ class UrlControllerTest {
     String requestBody = "{\"url\":\"" + longUrl + "\"}";
 
     mockMvc
-        .perform(post("/urls").contentType(MediaType.APPLICATION_JSON).content(requestBody))
+        .perform(post("/api/urls").contentType(MediaType.APPLICATION_JSON).content(requestBody))
         .andExpect(status().isCreated())
         .andExpect(jsonPath("$.longUrl").value(longUrl));
 
@@ -334,7 +334,7 @@ class UrlControllerTest {
     when(urlService.getUrls(5, 20)).thenReturn(urlPage);
 
     mockMvc
-        .perform(get("/urls").param("pageNo", "5").param("pageSize", "20"))
+        .perform(get("/api/urls").param("pageNo", "5").param("pageSize", "20"))
         .andExpect(status().isOk());
 
     verify(urlService).getUrls(5, 20);
