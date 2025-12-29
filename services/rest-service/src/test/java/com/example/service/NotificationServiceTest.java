@@ -82,9 +82,10 @@ class NotificationServiceTest {
             .setTotalElements(2L)
             .build();
 
-    when(grpcNotificationClient.getNotifications(pageNo, pageSize)).thenReturn(grpcResponse);
+    when(grpcNotificationClient.getNotifications(eq(pageNo), eq(pageSize), anyString(), anyString()))
+        .thenReturn(grpcResponse);
 
-    PagedNotificationsDto result = notificationService.getNotifications(pageNo, pageSize);
+    PagedNotificationsDto result = notificationService.getNotifications(pageNo, pageSize, null, null);
 
     assertThat(result).isNotNull();
     assertThat(result.getNotifications()).hasSize(2);
@@ -107,7 +108,7 @@ class NotificationServiceTest {
     assertThat(secondNotification.getNotificationType()).isEqualTo("THRESHOLD");
     assertThat(secondNotification.getNotificationStatus()).isEqualTo("SUCCESS");
 
-    verify(grpcNotificationClient).getNotifications(pageNo, pageSize);
+    verify(grpcNotificationClient).getNotifications(eq(pageNo), eq(pageSize), anyString(), anyString());
   }
 
   @Test
@@ -124,9 +125,10 @@ class NotificationServiceTest {
             .setTotalElements(0L)
             .build();
 
-    when(grpcNotificationClient.getNotifications(pageNo, pageSize)).thenReturn(grpcResponse);
+    when(grpcNotificationClient.getNotifications(eq(pageNo), eq(pageSize), anyString(), anyString()))
+        .thenReturn(grpcResponse);
 
-    PagedNotificationsDto result = notificationService.getNotifications(pageNo, pageSize);
+    PagedNotificationsDto result = notificationService.getNotifications(pageNo, pageSize, null, null);
 
     assertThat(result).isNotNull();
     assertThat(result.getNotifications()).isEmpty();
@@ -135,7 +137,7 @@ class NotificationServiceTest {
     assertThat(result.getTotalPages()).isEqualTo(0);
     assertThat(result.getTotalElements()).isEqualTo(0L);
 
-    verify(grpcNotificationClient).getNotifications(pageNo, pageSize);
+    verify(grpcNotificationClient).getNotifications(eq(pageNo), eq(pageSize), anyString(), anyString());
   }
 
   @Test
@@ -162,9 +164,10 @@ class NotificationServiceTest {
             .setTotalElements(25L)
             .build();
 
-    when(grpcNotificationClient.getNotifications(pageNo, pageSize)).thenReturn(grpcResponse);
+    when(grpcNotificationClient.getNotifications(eq(pageNo), eq(pageSize), anyString(), anyString()))
+        .thenReturn(grpcResponse);
 
-    PagedNotificationsDto result = notificationService.getNotifications(pageNo, pageSize);
+    PagedNotificationsDto result = notificationService.getNotifications(pageNo, pageSize, null, null);
 
     assertThat(result).isNotNull();
     assertThat(result.getNotifications()).hasSize(1);
@@ -172,7 +175,7 @@ class NotificationServiceTest {
     assertThat(result.getTotalPages()).isEqualTo(5);
     assertThat(result.getTotalElements()).isEqualTo(25L);
 
-    verify(grpcNotificationClient).getNotifications(pageNo, pageSize);
+    verify(grpcNotificationClient).getNotifications(eq(pageNo), eq(pageSize), anyString(), anyString());
   }
 
   @Test
@@ -205,9 +208,10 @@ class NotificationServiceTest {
             .setTotalElements(2L)
             .build();
 
-    when(grpcNotificationClient.getNotifications(anyInt(), anyInt())).thenReturn(grpcResponse);
+    when(grpcNotificationClient.getNotifications(anyInt(), anyInt(), anyString(), anyString()))
+        .thenReturn(grpcResponse);
 
-    PagedNotificationsDto result = notificationService.getNotifications(0, 10);
+    PagedNotificationsDto result = notificationService.getNotifications(0, 10, null, null);
 
     assertThat(result.getNotifications().get(0).getNotificationType()).isEqualTo("NEWURL");
     assertThat(result.getNotifications().get(1).getNotificationType()).isEqualTo("THRESHOLD");
@@ -253,9 +257,10 @@ class NotificationServiceTest {
             .setTotalElements(3L)
             .build();
 
-    when(grpcNotificationClient.getNotifications(anyInt(), anyInt())).thenReturn(grpcResponse);
+    when(grpcNotificationClient.getNotifications(anyInt(), anyInt(), anyString(), anyString()))
+        .thenReturn(grpcResponse);
 
-    PagedNotificationsDto result = notificationService.getNotifications(0, 10);
+    PagedNotificationsDto result = notificationService.getNotifications(0, 10, null, null);
 
     List<NotificationDto> notifications = result.getNotifications();
     assertThat(notifications.get(0).getNotificationStatus()).isEqualTo("PENDING");
@@ -284,9 +289,10 @@ class NotificationServiceTest {
             .setTotalElements(1L)
             .build();
 
-    when(grpcNotificationClient.getNotifications(anyInt(), anyInt())).thenReturn(grpcResponse);
+    when(grpcNotificationClient.getNotifications(anyInt(), anyInt(), anyString(), anyString()))
+        .thenReturn(grpcResponse);
 
-    PagedNotificationsDto result = notificationService.getNotifications(0, 1);
+    PagedNotificationsDto result = notificationService.getNotifications(0, 1, null, null);
 
     NotificationDto dto = result.getNotifications().get(0);
     assertThat(dto.getId()).isEqualTo(123L);
@@ -294,5 +300,120 @@ class NotificationServiceTest {
     assertThat(dto.getShortCode()).isEqualTo("complete123");
     assertThat(dto.getNotificationType()).isEqualTo("NEWURL");
     assertThat(dto.getNotificationStatus()).isEqualTo("SUCCESS");
+  }
+
+  @Test
+  @DisplayName("Should throw IllegalArgumentException when page number is negative")
+  void shouldThrowIllegalArgumentExceptionWhenPageNumberIsNegative() {
+    assertThat(org.assertj.core.api.Assertions.catchThrowable(
+            () -> notificationService.getNotifications(-1, 10, null, null)))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("Page number cannot be negative");
+
+    verify(grpcNotificationClient, never()).getNotifications(anyInt(), anyInt(), anyString(), anyString());
+  }
+
+  @Test
+  @DisplayName("Should throw IllegalArgumentException when page size is zero")
+  void shouldThrowIllegalArgumentExceptionWhenPageSizeIsZero() {
+    assertThat(org.assertj.core.api.Assertions.catchThrowable(
+            () -> notificationService.getNotifications(0, 0, null, null)))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("Page size must be greater than zero");
+
+    verify(grpcNotificationClient, never()).getNotifications(anyInt(), anyInt(), anyString(), anyString());
+  }
+
+  @Test
+  @DisplayName("Should throw IllegalArgumentException when page size is negative")
+  void shouldThrowIllegalArgumentExceptionWhenPageSizeIsNegative() {
+    assertThat(org.assertj.core.api.Assertions.catchThrowable(
+            () -> notificationService.getNotifications(0, -5, null, null)))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("Page size must be greater than zero");
+
+    verify(grpcNotificationClient, never()).getNotifications(anyInt(), anyInt(), anyString(), anyString());
+  }
+
+  @Test
+  @DisplayName("Should throw IllegalArgumentException when sortBy field is invalid")
+  void shouldThrowIllegalArgumentExceptionWhenSortByFieldIsInvalid() {
+    assertThat(org.assertj.core.api.Assertions.catchThrowable(
+            () -> notificationService.getNotifications(0, 10, "invalidField", null)))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("Invalid sortBy");
+
+    verify(grpcNotificationClient, never()).getNotifications(anyInt(), anyInt(), anyString(), anyString());
+  }
+
+  @Test
+  @DisplayName("Should throw IllegalArgumentException when sortDirection is invalid")
+  void shouldThrowIllegalArgumentExceptionWhenSortDirectionIsInvalid() {
+    assertThat(org.assertj.core.api.Assertions.catchThrowable(
+            () -> notificationService.getNotifications(0, 10, null, "invalid")))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("Invalid sortDirection");
+
+    verify(grpcNotificationClient, never()).getNotifications(anyInt(), anyInt(), anyString(), anyString());
+  }
+
+  @Test
+  @DisplayName("Should get notifications sorted by id in ascending order")
+  void shouldGetNotificationsSortedByIdAscending() {
+    GetNotificationsResponse grpcResponse =
+        GetNotificationsResponse.newBuilder()
+            .setPageNo(0)
+            .setPageSize(10)
+            .setTotalPages(1)
+            .setTotalElements(0L)
+            .build();
+
+    when(grpcNotificationClient.getNotifications(eq(0), eq(10), eq("id"), eq("asc")))
+        .thenReturn(grpcResponse);
+
+    PagedNotificationsDto result = notificationService.getNotifications(0, 10, "id", "asc");
+
+    assertThat(result).isNotNull();
+    verify(grpcNotificationClient).getNotifications(eq(0), eq(10), eq("id"), eq("asc"));
+  }
+
+  @Test
+  @DisplayName("Should get notifications sorted by shortCode")
+  void shouldGetNotificationsSortedByShortCode() {
+    GetNotificationsResponse grpcResponse =
+        GetNotificationsResponse.newBuilder()
+            .setPageNo(0)
+            .setPageSize(10)
+            .setTotalPages(1)
+            .setTotalElements(0L)
+            .build();
+
+    when(grpcNotificationClient.getNotifications(eq(0), eq(10), eq("shortCode"), eq("desc")))
+        .thenReturn(grpcResponse);
+
+    PagedNotificationsDto result = notificationService.getNotifications(0, 10, "shortCode", "desc");
+
+    assertThat(result).isNotNull();
+    verify(grpcNotificationClient).getNotifications(eq(0), eq(10), eq("shortCode"), eq("desc"));
+  }
+
+  @Test
+  @DisplayName("Should get notifications sorted by createdAt")
+  void shouldGetNotificationsSortedByCreatedAt() {
+    GetNotificationsResponse grpcResponse =
+        GetNotificationsResponse.newBuilder()
+            .setPageNo(0)
+            .setPageSize(10)
+            .setTotalPages(1)
+            .setTotalElements(0L)
+            .build();
+
+    when(grpcNotificationClient.getNotifications(eq(0), eq(10), eq("createdAt"), eq("asc")))
+        .thenReturn(grpcResponse);
+
+    PagedNotificationsDto result = notificationService.getNotifications(0, 10, "createdAt", "asc");
+
+    assertThat(result).isNotNull();
+    verify(grpcNotificationClient).getNotifications(eq(0), eq(10), eq("createdAt"), eq("asc"));
   }
 }

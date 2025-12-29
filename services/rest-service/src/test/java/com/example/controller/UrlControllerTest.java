@@ -88,7 +88,7 @@ class UrlControllerTest {
 
     Page<Url> urlPage = new PageImpl<>(Arrays.asList(url1, url2));
 
-    when(urlService.getUrls(0, 10)).thenReturn(urlPage);
+    when(urlService.getUrls(0, 10, null, null)).thenReturn(urlPage);
 
     mockMvc
         .perform(get("/api/urls").param("pageNo", "0").param("pageSize", "10"))
@@ -97,7 +97,7 @@ class UrlControllerTest {
         .andExpect(jsonPath("$.content[0].shortCode").value("abc123"))
         .andExpect(jsonPath("$.content[1].shortCode").value("xyz789"));
 
-    verify(urlService).getUrls(0, 10);
+    verify(urlService).getUrls(0, 10, null, null);
   }
 
   @Test
@@ -105,19 +105,22 @@ class UrlControllerTest {
   void shouldGetUrlsWithDefaultPaginationParameters() throws Exception {
     Page<Url> emptyPage = new PageImpl<>(Arrays.asList());
 
-    when(urlService.getUrls(0, 10)).thenReturn(emptyPage);
+    when(urlService.getUrls(0, 10, null, null)).thenReturn(emptyPage);
 
     mockMvc
         .perform(get("/api/urls"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.content").isArray());
 
-    verify(urlService).getUrls(0, 10);
+    verify(urlService).getUrls(0, 10, null, null);
   }
 
   @Test
   @DisplayName("Should throw exception when page number is negative")
   void shouldThrowExceptionWhenPageNumberIsNegative() throws Exception {
+    when(urlService.getUrls(eq(-1), eq(10), isNull(), isNull()))
+        .thenThrow(new IllegalArgumentException("Page number cannot be negative"));
+
     mockMvc
         .perform(get("/api/urls").param("pageNo", "-1").param("pageSize", "10"))
         .andExpect(status().isInternalServerError())
@@ -125,12 +128,15 @@ class UrlControllerTest {
             jsonPath("$.message")
                 .value("An unexpected error occurred: Page number cannot be negative"));
 
-    verify(urlService, never()).getUrls(anyInt(), anyInt());
+    verify(urlService).getUrls(eq(-1), eq(10), isNull(), isNull());
   }
 
   @Test
   @DisplayName("Should throw exception when page size is zero")
   void shouldThrowExceptionWhenPageSizeIsZero() throws Exception {
+    when(urlService.getUrls(eq(0), eq(0), isNull(), isNull()))
+        .thenThrow(new IllegalArgumentException("Page size must be greater than zero."));
+
     mockMvc
         .perform(get("/api/urls").param("pageNo", "0").param("pageSize", "0"))
         .andExpect(status().isInternalServerError())
@@ -138,12 +144,15 @@ class UrlControllerTest {
             jsonPath("$.message")
                 .value("An unexpected error occurred: Page size must be greater than zero."));
 
-    verify(urlService, never()).getUrls(anyInt(), anyInt());
+    verify(urlService).getUrls(eq(0), eq(0), isNull(), isNull());
   }
 
   @Test
   @DisplayName("Should throw exception when page size is negative")
   void shouldThrowExceptionWhenPageSizeIsNegative() throws Exception {
+    when(urlService.getUrls(eq(0), eq(-5), isNull(), isNull()))
+        .thenThrow(new IllegalArgumentException("Page size must be greater than zero."));
+
     mockMvc
         .perform(get("/api/urls").param("pageNo", "0").param("pageSize", "-5"))
         .andExpect(status().isInternalServerError())
@@ -151,7 +160,7 @@ class UrlControllerTest {
             jsonPath("$.message")
                 .value("An unexpected error occurred: Page size must be greater than zero."));
 
-    verify(urlService, never()).getUrls(anyInt(), anyInt());
+    verify(urlService).getUrls(eq(0), eq(-5), isNull(), isNull());
   }
 
   @Test
@@ -256,13 +265,13 @@ class UrlControllerTest {
   void shouldHandleLargePageSize() throws Exception {
     Page<Url> emptyPage = new PageImpl<>(Arrays.asList());
 
-    when(urlService.getUrls(0, 1000)).thenReturn(emptyPage);
+    when(urlService.getUrls(0, 1000, null, null)).thenReturn(emptyPage);
 
     mockMvc
         .perform(get("/api/urls").param("pageNo", "0").param("pageSize", "1000"))
         .andExpect(status().isOk());
 
-    verify(urlService).getUrls(0, 1000);
+    verify(urlService).getUrls(0, 1000, null, null);
   }
 
   @Test
@@ -270,7 +279,7 @@ class UrlControllerTest {
   void shouldHandleEmptyUrlList() throws Exception {
     Page<Url> emptyPage = new PageImpl<>(Arrays.asList());
 
-    when(urlService.getUrls(0, 10)).thenReturn(emptyPage);
+    when(urlService.getUrls(0, 10, null, null)).thenReturn(emptyPage);
 
     mockMvc
         .perform(get("/api/urls"))
@@ -278,7 +287,7 @@ class UrlControllerTest {
         .andExpect(jsonPath("$.content").isArray())
         .andExpect(jsonPath("$.content").isEmpty());
 
-    verify(urlService).getUrls(0, 10);
+    verify(urlService).getUrls(0, 10, null, null);
   }
 
   @Test
@@ -331,12 +340,12 @@ class UrlControllerTest {
   void shouldHandlePaginationWithSpecificPageNumber() throws Exception {
     Page<Url> urlPage = new PageImpl<>(Arrays.asList());
 
-    when(urlService.getUrls(5, 20)).thenReturn(urlPage);
+    when(urlService.getUrls(5, 20, null, null)).thenReturn(urlPage);
 
     mockMvc
         .perform(get("/api/urls").param("pageNo", "5").param("pageSize", "20"))
         .andExpect(status().isOk());
 
-    verify(urlService).getUrls(5, 20);
+    verify(urlService).getUrls(5, 20, null, null);
   }
 }

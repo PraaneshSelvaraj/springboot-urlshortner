@@ -113,6 +113,33 @@
             border-bottom: 1px solid #ddd;
         }
 
+        th.sortable {
+            cursor: pointer;
+            user-select: none;
+        }
+
+        th.sortable:hover {
+            background: #f0f0f0;
+        }
+
+        .sort-indicator {
+            display: inline-flex;
+            flex-direction: column;
+            margin-left: 5px;
+            font-size: 8px;
+            line-height: 6px;
+            vertical-align: middle;
+        }
+
+        .sort-indicator.active {
+            color: #0066cc;
+            font-size: 10px;
+        }
+
+        .sort-indicator.inactive {
+            color: #999;
+        }
+
         td {
             padding: 12px 15px;
             border-bottom: 1px solid #f0f0f0;
@@ -260,12 +287,51 @@
             <table id="urlsTable">
                 <thead>
                     <tr>
-                        <th>Short Code</th>
+                        <th class="sortable" onclick="sortTable('shortCode')">
+                            Short Code
+                            <c:choose>
+                                <c:when test="${sortBy == 'shortCode'}">
+                                    <span class="sort-indicator active">${sortDirection == 'asc' ? '▲' : '▼'}</span>
+                                </c:when>
+                                <c:otherwise>
+                                    <span class="sort-indicator inactive">
+                                        <span>▲</span>
+                                        <span>▼</span>
+                                    </span>
+                                </c:otherwise>
+                            </c:choose>
+                        </th>
                         <th>Original URL</th>
                         <th>Short URL</th>
-                        <th>Clicks</th>
+                        <th class="sortable" onclick="sortTable('clicks')">
+                            Clicks
+                            <c:choose>
+                                <c:when test="${sortBy == 'clicks'}">
+                                    <span class="sort-indicator active">${sortDirection == 'asc' ? '▲' : '▼'}</span>
+                                </c:when>
+                                <c:otherwise>
+                                    <span class="sort-indicator inactive">
+                                        <span>▲</span>
+                                        <span>▼</span>
+                                    </span>
+                                </c:otherwise>
+                            </c:choose>
+                        </th>
                         <th>Status</th>
-                        <th>ExpiresAt</th>
+                        <th class="sortable" onclick="sortTable('expiresAt')">
+                            ExpiresAt
+                            <c:choose>
+                                <c:when test="${sortBy == 'expiresAt'}">
+                                    <span class="sort-indicator active">${sortDirection == 'asc' ? '▲' : '▼'}</span>
+                                </c:when>
+                                <c:otherwise>
+                                    <span class="sort-indicator inactive">
+                                        <span>▲</span>
+                                        <span>▼</span>
+                                    </span>
+                                </c:otherwise>
+                            </c:choose>
+                        </th>
                         <th>Actions</th>
                     </tr>
                 </thead>
@@ -304,7 +370,7 @@
                 <c:if test="${totalPages > 1}">
                     <c:choose>
                         <c:when test="${currentPage > 0}">
-                            <a href="/urls?page=${currentPage - 1}&size=${pageSize}">
+                            <a href="/urls?page=${currentPage - 1}&size=${pageSize}&sortBy=${sortBy}&sortDirection=${sortDirection}">
                                 <button>Previous</button>
                             </a>
                         </c:when>
@@ -319,7 +385,7 @@
                                 <button class="active">${i + 1}</button>
                             </c:when>
                             <c:otherwise>
-                                <a href="/urls?page=${i}&size=${pageSize}">
+                                <a href="/urls?page=${i}&size=${pageSize}&sortBy=${sortBy}&sortDirection=${sortDirection}">
                                     <button>${i + 1}</button>
                                 </a>
                             </c:otherwise>
@@ -328,7 +394,7 @@
 
                     <c:choose>
                         <c:when test="${currentPage < totalPages - 1}">
-                            <a href="/urls?page=${currentPage + 1}&size=${pageSize}">
+                            <a href="/urls?page=${currentPage + 1}&size=${pageSize}&sortBy=${sortBy}&sortDirection=${sortDirection}">
                                 <button>Next</button>
                             </a>
                         </c:when>
@@ -342,6 +408,25 @@
     </div>
 
     <script>
+    function sortTable(column) {
+        const currentSortBy = '${sortBy}';
+        const currentSortDirection = '${sortDirection}';
+        const currentPage = ${currentPage};
+        const pageSize = ${pageSize};
+
+        let url = '/urls?page=' + currentPage + '&size=' + pageSize;
+
+        if (column === currentSortBy) {
+            if (currentSortDirection === 'asc') {
+                url += '&sortBy=' + column + '&sortDirection=desc';
+            }
+        } else {
+            url += '&sortBy=' + column + '&sortDirection=asc';
+        }
+
+        window.location.href = url;
+    }
+
     function copyToClipboard(event, shortUrl) {
         navigator.clipboard.writeText(shortUrl).then(function() {
             const btn = event.target;

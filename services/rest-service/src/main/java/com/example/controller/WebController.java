@@ -35,14 +35,20 @@ public class WebController {
   public String urls(
       @RequestParam(defaultValue = "0") int page,
       @RequestParam(defaultValue = "10") int size,
+      @RequestParam(required = false) String sortBy,
+      @RequestParam(required = false) String sortDirection,
       Model model) {
-    Page<Url> urls = urlService.getUrls(page, size);
+    Page<Url> urls = urlService.getUrls(page, size, sortBy, sortDirection);
+
     List<UrlDto> urlDtos = urls.stream().map(this::mapToUrlDto).collect(Collectors.toList());
+
     model.addAttribute("urls", urlDtos);
     model.addAttribute("currentPage", urls.getNumber());
     model.addAttribute("pageSize", urls.getSize());
     model.addAttribute("totalPages", urls.getTotalPages());
     model.addAttribute("totalElements", urls.getTotalElements());
+    model.addAttribute("sortBy", sortBy != null ? sortBy : "id");
+    model.addAttribute("sortDirection", sortDirection != null ? sortDirection : "desc");
     return "urls";
   }
 

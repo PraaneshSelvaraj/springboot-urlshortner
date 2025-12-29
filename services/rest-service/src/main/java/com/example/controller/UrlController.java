@@ -43,16 +43,10 @@ public class UrlController {
   @GetMapping("/api/urls")
   public ResponseEntity<Page<Url>> getUrls(
       @RequestParam(defaultValue = "0") int pageNo,
-      @RequestParam(defaultValue = "10") int pageSize) {
-
-    if (pageNo < 0) {
-      throw new IllegalArgumentException("Page number cannot be negative");
-    }
-    if (pageSize <= 0) {
-      throw new IllegalArgumentException("Page size must be greater than zero.");
-    }
-
-    Page<Url> urls = urlService.getUrls(pageNo, pageSize);
+      @RequestParam(defaultValue = "10") int pageSize,
+      @RequestParam(required = false) String sortBy,
+      @RequestParam(required = false) String sortDirection) {
+    Page<Url> urls = urlService.getUrls(pageNo, pageSize, sortBy, sortDirection);
     return new ResponseEntity<>(urls, HttpStatus.OK);
   }
 

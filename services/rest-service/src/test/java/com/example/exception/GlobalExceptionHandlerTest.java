@@ -84,7 +84,7 @@ class GlobalExceptionHandlerTest {
   @Test
   @DisplayName("Should handle generic Exception and return 500 INTERNAL SERVER ERROR")
   void shouldHandleGenericExceptionAndReturn500() throws Exception {
-    Mockito.when(urlService.getUrls(Mockito.anyInt(), Mockito.anyInt()))
+    Mockito.when(urlService.getUrls(Mockito.anyInt(), Mockito.anyInt(), Mockito.any(), Mockito.any()))
         .thenThrow(new RuntimeException("Unexpected error"));
 
     mockMvc
@@ -97,6 +97,9 @@ class GlobalExceptionHandlerTest {
   @Test
   @DisplayName("Should handle IllegalArgumentException and return 500 INTERNAL SERVER ERROR")
   void shouldHandleIllegalArgumentExceptionAndReturn500() throws Exception {
+    Mockito.when(urlService.getUrls(Mockito.eq(-1), Mockito.eq(10), Mockito.isNull(), Mockito.isNull()))
+        .thenThrow(new IllegalArgumentException("Page number cannot be negative"));
+
     mockMvc
         .perform(get("/api/urls").param("pageNo", "-1").param("pageSize", "10"))
         .andExpect(status().isInternalServerError())
@@ -166,7 +169,7 @@ class GlobalExceptionHandlerTest {
   void shouldPreserveExceptionMessageInErrorResponse() throws Exception {
     String customMessage = "This is a custom error message";
 
-    Mockito.when(urlService.getUrls(Mockito.anyInt(), Mockito.anyInt()))
+    Mockito.when(urlService.getUrls(Mockito.anyInt(), Mockito.anyInt(), Mockito.any(), Mockito.any()))
         .thenThrow(new RuntimeException(customMessage));
 
     mockMvc

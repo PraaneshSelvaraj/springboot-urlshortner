@@ -44,6 +44,8 @@ message Notification {
 message GetNotificationsRequest{
   optional int32 pageNo = 1;
   optional int32 pageSize = 2;
+  optional string sortBy = 3;
+  optional string sortDirection = 4;
 }
 
 message GetNotificationsResponse {

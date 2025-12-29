@@ -95,7 +95,7 @@ class GrpcNotificationClientTest {
 
     when(stub.getNotifications(any(GetNotificationsRequest.class))).thenReturn(mockResponse);
 
-    GetNotificationsResponse result = grpcNotificationClient.getNotifications(pageNo, pageSize);
+    GetNotificationsResponse result = grpcNotificationClient.getNotifications(pageNo, pageSize, null, null);
 
     assertThat(result).isNotNull();
     assertThat(result.getNotificationsList()).hasSize(1);
@@ -147,7 +147,7 @@ class GrpcNotificationClientTest {
     when(stub.getNotifications(any(GetNotificationsRequest.class)))
         .thenThrow(new RuntimeException("gRPC error"));
 
-    GetNotificationsResponse result = grpcNotificationClient.getNotifications(pageNo, pageSize);
+    GetNotificationsResponse result = grpcNotificationClient.getNotifications(pageNo, pageSize, null, null);
 
     assertThat(result).isNotNull();
     assertThat(result).isEqualTo(GetNotificationsResponse.getDefaultInstance());
@@ -236,7 +236,7 @@ class GrpcNotificationClientTest {
 
     when(stub.getNotifications(any(GetNotificationsRequest.class))).thenReturn(mockResponse);
 
-    GetNotificationsResponse result = grpcNotificationClient.getNotifications(pageNo, pageSize);
+    GetNotificationsResponse result = grpcNotificationClient.getNotifications(pageNo, pageSize, null, null);
 
     assertThat(result).isNotNull();
     assertThat(result.getNotificationsList()).isEmpty();
@@ -279,7 +279,7 @@ class GrpcNotificationClientTest {
 
     when(stub.getNotifications(any(GetNotificationsRequest.class))).thenReturn(mockResponse);
 
-    GetNotificationsResponse result = grpcNotificationClient.getNotifications(pageNo, pageSize);
+    GetNotificationsResponse result = grpcNotificationClient.getNotifications(pageNo, pageSize, null, null);
 
     assertThat(result).isNotNull();
     assertThat(result.getNotificationsList()).hasSize(2);

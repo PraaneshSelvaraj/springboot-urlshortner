@@ -20,17 +20,12 @@ public class NotificationController {
   @GetMapping("/api/notifications")
   public ResponseEntity<PagedNotificationsDto> getNotifications(
       @RequestParam(defaultValue = "0") int pageNo,
-      @RequestParam(defaultValue = "10") int pageSize) {
-
-    if (pageNo < 0) {
-      throw new IllegalArgumentException("Page number cannot be negative");
-    }
-    if (pageSize <= 0) {
-      throw new IllegalArgumentException("Page size must be greater than zero.");
-    }
+      @RequestParam(defaultValue = "10") int pageSize,
+      @RequestParam(required = false) String sortBy,
+      @RequestParam(required = false) String sortDirection) {
 
     PagedNotificationsDto pagedNotificationsDto =
-        notificationService.getNotifications(pageNo, pageSize);
+        notificationService.getNotifications(pageNo, pageSize, sortBy, sortDirection);
     return new ResponseEntity<>(pagedNotificationsDto, HttpStatus.OK);
   }
 }

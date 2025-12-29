@@ -66,11 +66,20 @@ public class GrpcNotificationClient {
     }
   }
 
-  public GetNotificationsResponse getNotifications(int pageNo, int pageSize) {
+  public GetNotificationsResponse getNotifications(
+      int pageNo, int pageSize, String sortBy, String sortDirection) {
     try {
-      GetNotificationsRequest request =
-          GetNotificationsRequest.newBuilder().setPageNo(pageNo).setPageSize(pageSize).build();
+      GetNotificationsRequest.Builder requestBuilder =
+          GetNotificationsRequest.newBuilder().setPageNo(pageNo).setPageSize(pageSize);
 
+      if (sortBy != null) {
+        requestBuilder.setSortBy(sortBy);
+      }
+      if (sortDirection != null) {
+        requestBuilder.setSortDirection(sortDirection);
+      }
+
+      GetNotificationsRequest request = requestBuilder.build();
       GetNotificationsResponse response = stub.getNotifications(request);
 
       return response;

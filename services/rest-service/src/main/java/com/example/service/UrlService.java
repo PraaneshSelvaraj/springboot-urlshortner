@@ -77,8 +77,37 @@ public class UrlService {
     return urlDto;
   }
 
-  public Page<Url> getUrls(int pageNo, int pageSize) {
-    Pageable pageable = PageRequest.of(pageNo, pageSize, Sort.by("id").descending());
+  public Page<Url> getUrls(int pageNo, int pageSize, String sortBy, String sortDirection) {
+
+    if (pageNo < 0) {
+      throw new IllegalArgumentException("Page number cannot be negative");
+    }
+
+    if (pageSize <= 0) {
+      throw new IllegalArgumentException("Page size must be greater than zero.");
+    }
+
+    Set<String> allowedSortField = Set.of("id", "shortCode", "clicks", "createdAt", "expiresAt");
+
+    if (sortBy != null && !allowedSortField.contains(sortBy)) {
+      throw new IllegalArgumentException(
+          "Invalid sortBy: '" + sortBy + "'. Allowed values: " + allowedSortField);
+    }
+    String validSortBy = sortBy != null ? sortBy : "id";
+
+    if (sortDirection != null
+        && !sortDirection.equalsIgnoreCase("asc")
+        && !sortDirection.equalsIgnoreCase("desc")) {
+      throw new IllegalArgumentException(
+          "Invalid sortDirection: '" + sortDirection + "'. Allowed values: asc, desc");
+    }
+    String validDirection = sortDirection != null ? sortDirection : "desc";
+
+    Sort.Direction direction =
+        validDirection.equalsIgnoreCase("asc") ? Sort.Direction.ASC : Sort.Direction.DESC;
+
+    Pageable pageable = PageRequest.of(pageNo, pageSize, Sort.by(direction, validSortBy));
+
     return urlRepo.findAll(pageable);
   }
 

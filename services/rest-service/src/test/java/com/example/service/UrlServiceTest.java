@@ -124,7 +124,7 @@ class UrlServiceTest {
 
     when(urlRepository.findAll(any(Pageable.class))).thenReturn(urlPage);
 
-    Page<Url> result = urlService.getUrls(0, 10);
+    Page<Url> result = urlService.getUrls(0, 10, null, null);
 
     assertThat(result).isNotNull();
     assertThat(result.getContent()).hasSize(2);
@@ -378,5 +378,134 @@ class UrlServiceTest {
 
     verify(urlRepository, never()).save(any(Url.class));
     verify(notificationService, never()).sendUrlCreatedNotification(anyString(), anyString());
+  }
+
+  @Test
+  @DisplayName("Should throw IllegalArgumentException when page number is negative")
+  void shouldThrowIllegalArgumentExceptionWhenPageNumberIsNegative() {
+    assertThatThrownBy(() -> urlService.getUrls(-1, 10, null, null))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("Page number cannot be negative");
+
+    verify(urlRepository, never()).findAll(any(Pageable.class));
+  }
+
+  @Test
+  @DisplayName("Should throw IllegalArgumentException when page size is zero")
+  void shouldThrowIllegalArgumentExceptionWhenPageSizeIsZero() {
+    assertThatThrownBy(() -> urlService.getUrls(0, 0, null, null))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("Page size must be greater than zero");
+
+    verify(urlRepository, never()).findAll(any(Pageable.class));
+  }
+
+  @Test
+  @DisplayName("Should throw IllegalArgumentException when page size is negative")
+  void shouldThrowIllegalArgumentExceptionWhenPageSizeIsNegative() {
+    assertThatThrownBy(() -> urlService.getUrls(0, -5, null, null))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("Page size must be greater than zero");
+
+    verify(urlRepository, never()).findAll(any(Pageable.class));
+  }
+
+  @Test
+  @DisplayName("Should throw IllegalArgumentException when sortBy field is invalid")
+  void shouldThrowIllegalArgumentExceptionWhenSortByFieldIsInvalid() {
+    assertThatThrownBy(() -> urlService.getUrls(0, 10, "invalidField", null))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("Invalid sortBy");
+
+    verify(urlRepository, never()).findAll(any(Pageable.class));
+  }
+
+  @Test
+  @DisplayName("Should throw IllegalArgumentException when sortDirection is invalid")
+  void shouldThrowIllegalArgumentExceptionWhenSortDirectionIsInvalid() {
+    assertThatThrownBy(() -> urlService.getUrls(0, 10, null, "invalid"))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("Invalid sortDirection");
+
+    verify(urlRepository, never()).findAll(any(Pageable.class));
+  }
+
+  @Test
+  @DisplayName("Should get URLs sorted by clicks in ascending order")
+  void shouldGetUrlsSortedByClicksAscending() {
+    Url url1 = new Url();
+    url1.setId(1L);
+    url1.setClicks(5);
+
+    Url url2 = new Url();
+    url2.setId(2L);
+    url2.setClicks(10);
+
+    Page<Url> urlPage = new PageImpl<>(Arrays.asList(url1, url2));
+
+    when(urlRepository.findAll(any(Pageable.class))).thenReturn(urlPage);
+
+    Page<Url> result = urlService.getUrls(0, 10, "clicks", "asc");
+
+    assertThat(result).isNotNull();
+    assertThat(result.getContent()).hasSize(2);
+    verify(urlRepository).findAll(any(Pageable.class));
+  }
+
+  @Test
+  @DisplayName("Should get URLs sorted by shortCode in descending order")
+  void shouldGetUrlsSortedByShortCodeDescending() {
+    Url url1 = new Url();
+    url1.setId(1L);
+    url1.setShortCode("xyz789");
+
+    Url url2 = new Url();
+    url2.setId(2L);
+    url2.setShortCode("abc123");
+
+    Page<Url> urlPage = new PageImpl<>(Arrays.asList(url1, url2));
+
+    when(urlRepository.findAll(any(Pageable.class))).thenReturn(urlPage);
+
+    Page<Url> result = urlService.getUrls(0, 10, "shortCode", "desc");
+
+    assertThat(result).isNotNull();
+    assertThat(result.getContent()).hasSize(2);
+    verify(urlRepository).findAll(any(Pageable.class));
+  }
+
+  @Test
+  @DisplayName("Should get URLs sorted by expiresAt")
+  void shouldGetUrlsSortedByExpiresAt() {
+    Url url1 = new Url();
+    url1.setId(1L);
+    url1.setExpiresAt(LocalDateTime.now().plusHours(1));
+
+    Url url2 = new Url();
+    url2.setId(2L);
+    url2.setExpiresAt(LocalDateTime.now().plusHours(2));
+
+    Page<Url> urlPage = new PageImpl<>(Arrays.asList(url1, url2));
+
+    when(urlRepository.findAll(any(Pageable.class))).thenReturn(urlPage);
+
+    Page<Url> result = urlService.getUrls(0, 10, "expiresAt", "asc");
+
+    assertThat(result).isNotNull();
+    assertThat(result.getContent()).hasSize(2);
+    verify(urlRepository).findAll(any(Pageable.class));
+  }
+
+  @Test
+  @DisplayName("Should use default sort parameters when not provided")
+  void shouldUseDefaultSortParametersWhenNotProvided() {
+    Page<Url> urlPage = new PageImpl<>(Arrays.asList());
+
+    when(urlRepository.findAll(any(Pageable.class))).thenReturn(urlPage);
+
+    Page<Url> result = urlService.getUrls(0, 10, null, null);
+
+    assertThat(result).isNotNull();
+    verify(urlRepository).findAll(any(Pageable.class));
   }
 }

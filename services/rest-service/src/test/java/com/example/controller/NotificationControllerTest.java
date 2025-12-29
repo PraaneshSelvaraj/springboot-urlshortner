@@ -51,7 +51,7 @@ class NotificationControllerTest {
     pagedNotifications.setTotalPages(1);
     pagedNotifications.setTotalElements(2);
 
-    when(notificationService.getNotifications(0, 10)).thenReturn(pagedNotifications);
+    when(notificationService.getNotifications(0, 10, null, null)).thenReturn(pagedNotifications);
 
     mockMvc
         .perform(get("/api/notifications").param("pageNo", "0").param("pageSize", "10"))
@@ -67,7 +67,7 @@ class NotificationControllerTest {
         .andExpect(jsonPath("$.totalPages").value(1))
         .andExpect(jsonPath("$.totalElements").value(2));
 
-    verify(notificationService).getNotifications(0, 10);
+    verify(notificationService).getNotifications(0, 10, null, null);
   }
 
   @Test
@@ -80,7 +80,7 @@ class NotificationControllerTest {
     emptyNotifications.setTotalPages(0);
     emptyNotifications.setTotalElements(0);
 
-    when(notificationService.getNotifications(0, 10)).thenReturn(emptyNotifications);
+    when(notificationService.getNotifications(0, 10, null, null)).thenReturn(emptyNotifications);
 
     mockMvc
         .perform(get("/api/notifications"))
@@ -90,12 +90,15 @@ class NotificationControllerTest {
         .andExpect(jsonPath("$.pageNo").value(0))
         .andExpect(jsonPath("$.pageSize").value(10));
 
-    verify(notificationService).getNotifications(0, 10);
+    verify(notificationService).getNotifications(0, 10, null, null);
   }
 
   @Test
   @DisplayName("Should throw exception when page number is negative")
   void shouldThrowExceptionWhenPageNumberIsNegative() throws Exception {
+    when(notificationService.getNotifications(eq(-1), eq(10), isNull(), isNull()))
+        .thenThrow(new IllegalArgumentException("Page number cannot be negative"));
+
     mockMvc
         .perform(get("/api/notifications").param("pageNo", "-1").param("pageSize", "10"))
         .andExpect(status().isInternalServerError())
@@ -103,12 +106,15 @@ class NotificationControllerTest {
             jsonPath("$.message")
                 .value("An unexpected error occurred: Page number cannot be negative"));
 
-    verify(notificationService, never()).getNotifications(anyInt(), anyInt());
+    verify(notificationService).getNotifications(eq(-1), eq(10), isNull(), isNull());
   }
 
   @Test
   @DisplayName("Should throw exception when page size is zero")
   void shouldThrowExceptionWhenPageSizeIsZero() throws Exception {
+    when(notificationService.getNotifications(eq(0), eq(0), isNull(), isNull()))
+        .thenThrow(new IllegalArgumentException("Page size must be greater than zero."));
+
     mockMvc
         .perform(get("/api/notifications").param("pageNo", "0").param("pageSize", "0"))
         .andExpect(status().isInternalServerError())
@@ -116,12 +122,15 @@ class NotificationControllerTest {
             jsonPath("$.message")
                 .value("An unexpected error occurred: Page size must be greater than zero."));
 
-    verify(notificationService, never()).getNotifications(anyInt(), anyInt());
+    verify(notificationService).getNotifications(eq(0), eq(0), isNull(), isNull());
   }
 
   @Test
   @DisplayName("Should throw exception when page size is negative")
   void shouldThrowExceptionWhenPageSizeIsNegative() throws Exception {
+    when(notificationService.getNotifications(eq(0), eq(-5), isNull(), isNull()))
+        .thenThrow(new IllegalArgumentException("Page size must be greater than zero."));
+
     mockMvc
         .perform(get("/api/notifications").param("pageNo", "0").param("pageSize", "-5"))
         .andExpect(status().isInternalServerError())
@@ -129,7 +138,7 @@ class NotificationControllerTest {
             jsonPath("$.message")
                 .value("An unexpected error occurred: Page size must be greater than zero."));
 
-    verify(notificationService, never()).getNotifications(anyInt(), anyInt());
+    verify(notificationService).getNotifications(eq(0), eq(-5), isNull(), isNull());
   }
 
   @Test
@@ -142,7 +151,7 @@ class NotificationControllerTest {
     emptyNotifications.setTotalPages(0);
     emptyNotifications.setTotalElements(0);
 
-    when(notificationService.getNotifications(0, 10)).thenReturn(emptyNotifications);
+    when(notificationService.getNotifications(0, 10, null, null)).thenReturn(emptyNotifications);
 
     mockMvc
         .perform(get("/api/notifications").param("pageNo", "0").param("pageSize", "10"))
@@ -151,7 +160,7 @@ class NotificationControllerTest {
         .andExpect(jsonPath("$.notifications").isEmpty())
         .andExpect(jsonPath("$.totalElements").value(0));
 
-    verify(notificationService).getNotifications(0, 10);
+    verify(notificationService).getNotifications(0, 10, null, null);
   }
 
   @Test
@@ -164,14 +173,14 @@ class NotificationControllerTest {
     notifications.setTotalPages(0);
     notifications.setTotalElements(0);
 
-    when(notificationService.getNotifications(0, 1000)).thenReturn(notifications);
+    when(notificationService.getNotifications(0, 1000, null, null)).thenReturn(notifications);
 
     mockMvc
         .perform(get("/api/notifications").param("pageNo", "0").param("pageSize", "1000"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.pageSize").value(1000));
 
-    verify(notificationService).getNotifications(0, 1000);
+    verify(notificationService).getNotifications(0, 1000, null, null);
   }
 
   @Test
@@ -184,7 +193,7 @@ class NotificationControllerTest {
     notifications.setTotalPages(10);
     notifications.setTotalElements(200);
 
-    when(notificationService.getNotifications(5, 20)).thenReturn(notifications);
+    when(notificationService.getNotifications(5, 20, null, null)).thenReturn(notifications);
 
     mockMvc
         .perform(get("/api/notifications").param("pageNo", "5").param("pageSize", "20"))
@@ -193,7 +202,7 @@ class NotificationControllerTest {
         .andExpect(jsonPath("$.pageSize").value(20))
         .andExpect(jsonPath("$.totalPages").value(10));
 
-    verify(notificationService).getNotifications(5, 20);
+    verify(notificationService).getNotifications(5, 20, null, null);
   }
 
   @Test
@@ -224,7 +233,7 @@ class NotificationControllerTest {
     pagedNotifications.setTotalPages(1);
     pagedNotifications.setTotalElements(3);
 
-    when(notificationService.getNotifications(0, 10)).thenReturn(pagedNotifications);
+    when(notificationService.getNotifications(0, 10, null, null)).thenReturn(pagedNotifications);
 
     mockMvc
         .perform(get("/api/notifications").param("pageNo", "0").param("pageSize", "10"))
@@ -233,7 +242,7 @@ class NotificationControllerTest {
         .andExpect(jsonPath("$.notifications[1].notificationType").value("THRESHOLD"))
         .andExpect(jsonPath("$.notifications[2].notificationType").value("NEWUSER"));
 
-    verify(notificationService).getNotifications(0, 10);
+    verify(notificationService).getNotifications(0, 10, null, null);
   }
 
   @Test
@@ -261,7 +270,7 @@ class NotificationControllerTest {
     pagedNotifications.setTotalPages(1);
     pagedNotifications.setTotalElements(3);
 
-    when(notificationService.getNotifications(0, 10)).thenReturn(pagedNotifications);
+    when(notificationService.getNotifications(0, 10, null, null)).thenReturn(pagedNotifications);
 
     mockMvc
         .perform(get("/api/notifications").param("pageNo", "0").param("pageSize", "10"))
@@ -270,6 +279,6 @@ class NotificationControllerTest {
         .andExpect(jsonPath("$.notifications[1].notificationStatus").value("SUCCESS"))
         .andExpect(jsonPath("$.notifications[2].notificationStatus").value("FAILURE"));
 
-    verify(notificationService).getNotifications(0, 10);
+    verify(notificationService).getNotifications(0, 10, null, null);
   }
 }

@@ -10,6 +10,7 @@ import io.grpc.stub.StreamObserver;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 import org.springframework.data.domain.*;
 import org.springframework.stereotype.Service;
@@ -96,9 +97,38 @@ public class GrpcNotificationService extends NotificationServiceGrpc.Notificatio
   public void getNotifications(
       GetNotificationsRequest request, StreamObserver<GetNotificationsResponse> responseObserver) {
     try {
+      int pageNo = request.hasPageNo() ? request.getPageNo() : 0;
+      int pageSize = request.hasPageSize() ? request.getPageSize() : 10;
+      String sortBy = request.hasSortBy() ? request.getSortBy() : "id";
+      String sortDirection = request.hasSortDirection() ? request.getSortDirection() : "desc";
 
-      int pageSize = (request.getPageSize() <= 0) ? 10 : request.getPageSize();
-      Pageable pageable = PageRequest.of(request.getPageNo(), pageSize, Sort.by("id").descending());
+      if (pageNo < 0) {
+        throw Status.INVALID_ARGUMENT
+            .withDescription("Page number cannot be negative")
+            .asRuntimeException();
+      }
+
+      if (pageSize <= 0) {
+        throw Status.INVALID_ARGUMENT
+            .withDescription("Page size must be greater than zero")
+            .asRuntimeException();
+      }
+
+      Set<String> allowedSortField = Set.of("id", "shortCode", "createdAt");
+      if (sortBy != null && !allowedSortField.contains(sortBy)) {
+        throw Status.INVALID_ARGUMENT
+            .withDescription(
+                "Invalid sortBy field: '"
+                    + sortBy
+                    + "'. Allowed fields: "
+                    + String.join(", ", allowedSortField))
+            .asRuntimeException();
+      }
+
+      Sort.Direction direction =
+          sortDirection.equalsIgnoreCase("asc") ? Sort.Direction.ASC : Sort.Direction.DESC;
+
+      Pageable pageable = PageRequest.of(pageNo, pageSize, Sort.by(direction, sortBy));
       Page<NotificationModel> notificationPage;
 
       notificationPage = notificationRepo.findAll(pageable);
@@ -111,12 +141,15 @@ public class GrpcNotificationService extends NotificationServiceGrpc.Notificatio
               .addAllNotifications(grpcList)
               .setTotalPages(notificationPage.getTotalPages())
               .setTotalElements(notificationPage.getTotalElements())
-              .setPageNo(request.getPageNo())
+              .setPageNo(pageNo)
               .setPageSize(pageSize)
               .build();
 
       responseObserver.onNext(response);
       responseObserver.onCompleted();
+    } catch (StatusRuntimeException e) {
+      System.err.println("gRPC Error: " + e.getStatus().getDescription());
+      responseObserver.onError(e);
     } catch (Exception e) {
       responseObserver.onError(
           Status.INTERNAL

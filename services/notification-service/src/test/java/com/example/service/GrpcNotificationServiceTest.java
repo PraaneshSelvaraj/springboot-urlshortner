@@ -277,46 +277,6 @@ class GrpcNotificationServiceTest {
   }
 
   @Test
-  @DisplayName("Should use default page size when page size is zero")
-  void shouldUseDefaultPageSizeWhenPageSizeIsZero() {
-    Page<NotificationModel> emptyPage = new PageImpl<>(Arrays.asList());
-
-    GetNotificationsRequest request =
-        GetNotificationsRequest.newBuilder().setPageNo(0).setPageSize(0).build();
-
-    when(notificationRepo.findAll(any(Pageable.class))).thenReturn(emptyPage);
-
-    grpcNotificationService.getNotifications(request, getNotificationsResponseObserver);
-
-    ArgumentCaptor<GetNotificationsResponse> responseCaptor =
-        ArgumentCaptor.forClass(GetNotificationsResponse.class);
-    verify(getNotificationsResponseObserver).onNext(responseCaptor.capture());
-
-    GetNotificationsResponse response = responseCaptor.getValue();
-    assertThat(response.getPageSize()).isEqualTo(10);
-  }
-
-  @Test
-  @DisplayName("Should use default page size when page size is negative")
-  void shouldUseDefaultPageSizeWhenPageSizeIsNegative() {
-    Page<NotificationModel> emptyPage = new PageImpl<>(Arrays.asList());
-
-    GetNotificationsRequest request =
-        GetNotificationsRequest.newBuilder().setPageNo(0).setPageSize(-5).build();
-
-    when(notificationRepo.findAll(any(Pageable.class))).thenReturn(emptyPage);
-
-    grpcNotificationService.getNotifications(request, getNotificationsResponseObserver);
-
-    ArgumentCaptor<GetNotificationsResponse> responseCaptor =
-        ArgumentCaptor.forClass(GetNotificationsResponse.class);
-    verify(getNotificationsResponseObserver).onNext(responseCaptor.capture());
-
-    GetNotificationsResponse response = responseCaptor.getValue();
-    assertThat(response.getPageSize()).isEqualTo(10);
-  }
-
-  @Test
   @DisplayName("Should map notification model to grpc notification correctly")
   void shouldMapNotificationModelToGrpcNotificationCorrectly() {
     NotificationModel notification = new NotificationModel();
@@ -478,5 +438,197 @@ class GrpcNotificationServiceTest {
     verify(notificationTypeRepo).findByName("NEWUSER");
     verify(notificationRepo).save(any(NotificationModel.class));
     verify(notifyResponseObserver).onCompleted();
+  }
+
+  @Test
+  @DisplayName("Should use default values when optional parameters not provided")
+  void shouldUseDefaultValuesWhenOptionalParametersNotProvided() {
+    Page<NotificationModel> emptyPage = new PageImpl<>(Arrays.asList());
+
+    GetNotificationsRequest request = GetNotificationsRequest.newBuilder().build();
+
+    when(notificationRepo.findAll(any(Pageable.class))).thenReturn(emptyPage);
+
+    grpcNotificationService.getNotifications(request, getNotificationsResponseObserver);
+
+    ArgumentCaptor<GetNotificationsResponse> responseCaptor =
+        ArgumentCaptor.forClass(GetNotificationsResponse.class);
+    verify(getNotificationsResponseObserver).onNext(responseCaptor.capture());
+
+    GetNotificationsResponse response = responseCaptor.getValue();
+    assertThat(response.getPageNo()).isEqualTo(0);
+    assertThat(response.getPageSize()).isEqualTo(10);
+  }
+
+  @Test
+  @DisplayName("Should throw INVALID_ARGUMENT when page number is negative")
+  void shouldThrowInvalidArgumentWhenPageNumberIsNegative() {
+    GetNotificationsRequest request =
+        GetNotificationsRequest.newBuilder().setPageNo(-1).setPageSize(10).build();
+
+    grpcNotificationService.getNotifications(request, getNotificationsResponseObserver);
+
+    ArgumentCaptor<StatusRuntimeException> errorCaptor =
+        ArgumentCaptor.forClass(StatusRuntimeException.class);
+    verify(getNotificationsResponseObserver).onError(errorCaptor.capture());
+
+    StatusRuntimeException exception = errorCaptor.getValue();
+    assertThat(exception.getStatus().getCode()).isEqualTo(Status.Code.INVALID_ARGUMENT);
+    assertThat(exception.getStatus().getDescription())
+        .contains("Page number cannot be negative");
+
+    verify(notificationRepo, never()).findAll(any(Pageable.class));
+  }
+
+  @Test
+  @DisplayName("Should throw INVALID_ARGUMENT when page size is zero")
+  void shouldThrowInvalidArgumentWhenPageSizeIsZero() {
+    GetNotificationsRequest request =
+        GetNotificationsRequest.newBuilder().setPageNo(0).setPageSize(0).build();
+
+    grpcNotificationService.getNotifications(request, getNotificationsResponseObserver);
+
+    ArgumentCaptor<StatusRuntimeException> errorCaptor =
+        ArgumentCaptor.forClass(StatusRuntimeException.class);
+    verify(getNotificationsResponseObserver).onError(errorCaptor.capture());
+
+    StatusRuntimeException exception = errorCaptor.getValue();
+    assertThat(exception.getStatus().getCode()).isEqualTo(Status.Code.INVALID_ARGUMENT);
+    assertThat(exception.getStatus().getDescription())
+        .contains("Page size must be greater than zero");
+
+    verify(notificationRepo, never()).findAll(any(Pageable.class));
+  }
+
+  @Test
+  @DisplayName("Should throw INVALID_ARGUMENT when page size is negative")
+  void shouldThrowInvalidArgumentWhenPageSizeIsNegative() {
+    GetNotificationsRequest request =
+        GetNotificationsRequest.newBuilder().setPageNo(0).setPageSize(-5).build();
+
+    grpcNotificationService.getNotifications(request, getNotificationsResponseObserver);
+
+    ArgumentCaptor<StatusRuntimeException> errorCaptor =
+        ArgumentCaptor.forClass(StatusRuntimeException.class);
+    verify(getNotificationsResponseObserver).onError(errorCaptor.capture());
+
+    StatusRuntimeException exception = errorCaptor.getValue();
+    assertThat(exception.getStatus().getCode()).isEqualTo(Status.Code.INVALID_ARGUMENT);
+    assertThat(exception.getStatus().getDescription())
+        .contains("Page size must be greater than zero");
+
+    verify(notificationRepo, never()).findAll(any(Pageable.class));
+  }
+
+  @Test
+  @DisplayName("Should throw INVALID_ARGUMENT when sortBy field is invalid")
+  void shouldThrowInvalidArgumentWhenSortByFieldIsInvalid() {
+    GetNotificationsRequest request =
+        GetNotificationsRequest.newBuilder()
+            .setPageNo(0)
+            .setPageSize(10)
+            .setSortBy("invalidField")
+            .setSortDirection("desc")
+            .build();
+
+    grpcNotificationService.getNotifications(request, getNotificationsResponseObserver);
+
+    ArgumentCaptor<StatusRuntimeException> errorCaptor =
+        ArgumentCaptor.forClass(StatusRuntimeException.class);
+    verify(getNotificationsResponseObserver).onError(errorCaptor.capture());
+
+    StatusRuntimeException exception = errorCaptor.getValue();
+    assertThat(exception.getStatus().getCode()).isEqualTo(Status.Code.INVALID_ARGUMENT);
+    assertThat(exception.getStatus().getDescription()).contains("Invalid sortBy field");
+
+    verify(notificationRepo, never()).findAll(any(Pageable.class));
+  }
+
+  @Test
+  @DisplayName("Should get notifications sorted by id")
+  void shouldGetNotificationsSortedById() {
+    NotificationModel notification = new NotificationModel();
+    notification.setId(1L);
+    notification.setMessage("Test");
+    notification.setType(testType);
+    notification.setStatus(testStatus);
+    notification.setCreatedAt(LocalDateTime.now());
+
+    Page<NotificationModel> page = new PageImpl<>(Arrays.asList(notification));
+
+    GetNotificationsRequest request =
+        GetNotificationsRequest.newBuilder()
+            .setPageNo(0)
+            .setPageSize(10)
+            .setSortBy("id")
+            .setSortDirection("asc")
+            .build();
+
+    when(notificationRepo.findAll(any(Pageable.class))).thenReturn(page);
+
+    grpcNotificationService.getNotifications(request, getNotificationsResponseObserver);
+
+    verify(getNotificationsResponseObserver).onNext(any(GetNotificationsResponse.class));
+    verify(getNotificationsResponseObserver).onCompleted();
+    verify(notificationRepo).findAll(any(Pageable.class));
+  }
+
+  @Test
+  @DisplayName("Should get notifications sorted by shortCode in descending order")
+  void shouldGetNotificationsSortedByShortCodeDescending() {
+    NotificationModel notification = new NotificationModel();
+    notification.setId(1L);
+    notification.setMessage("Test");
+    notification.setShortCode("abc123");
+    notification.setType(testType);
+    notification.setStatus(testStatus);
+    notification.setCreatedAt(LocalDateTime.now());
+
+    Page<NotificationModel> page = new PageImpl<>(Arrays.asList(notification));
+
+    GetNotificationsRequest request =
+        GetNotificationsRequest.newBuilder()
+            .setPageNo(0)
+            .setPageSize(10)
+            .setSortBy("shortCode")
+            .setSortDirection("desc")
+            .build();
+
+    when(notificationRepo.findAll(any(Pageable.class))).thenReturn(page);
+
+    grpcNotificationService.getNotifications(request, getNotificationsResponseObserver);
+
+    verify(getNotificationsResponseObserver).onNext(any(GetNotificationsResponse.class));
+    verify(getNotificationsResponseObserver).onCompleted();
+    verify(notificationRepo).findAll(any(Pageable.class));
+  }
+
+  @Test
+  @DisplayName("Should get notifications sorted by createdAt")
+  void shouldGetNotificationsSortedByCreatedAt() {
+    NotificationModel notification = new NotificationModel();
+    notification.setId(1L);
+    notification.setMessage("Test");
+    notification.setType(testType);
+    notification.setStatus(testStatus);
+    notification.setCreatedAt(LocalDateTime.now());
+
+    Page<NotificationModel> page = new PageImpl<>(Arrays.asList(notification));
+
+    GetNotificationsRequest request =
+        GetNotificationsRequest.newBuilder()
+            .setPageNo(0)
+            .setPageSize(10)
+            .setSortBy("createdAt")
+            .setSortDirection("asc")
+            .build();
+
+    when(notificationRepo.findAll(any(Pageable.class))).thenReturn(page);
+
+    grpcNotificationService.getNotifications(request, getNotificationsResponseObserver);
+
+    verify(getNotificationsResponseObserver).onNext(any(GetNotificationsResponse.class));
+    verify(getNotificationsResponseObserver).onCompleted();
+    verify(notificationRepo).findAll(any(Pageable.class));
   }
 }
