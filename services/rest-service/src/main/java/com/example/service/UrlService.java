@@ -25,10 +25,10 @@ public class UrlService {
 
   private static final Random random = new Random();
 
-  @Value("${bannedHosts}")
+  @Value("${banned-hosts}")
   private Set<String> bannedHosts;
 
-  @Value("${urlExpirationHours}")
+  @Value("${url-expiration-hours}")
   private int urlExpirationHours;
 
   @Value("${notification.threshold}")

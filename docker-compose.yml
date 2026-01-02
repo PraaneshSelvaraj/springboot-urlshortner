@@ -26,9 +26,12 @@ services:
       - "8081:8081"
       - "9091:9091"
     environment:
-      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/${MYSQL_DATABASE}?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
-      SPRING_DATASOURCE_USERNAME: ${DB_USERNAME}
-      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+      NOTIFICATION_SERVICE_PORT: ${NOTIFICATION_SERVICE_PORT}
+      NOTIFICATION_GRPC_PORT: ${NOTIFICATION_GRPC_PORT}
     depends_on:
       mysql:
         condition: service_healthy
@@ -42,15 +45,17 @@ services:
     ports:
       - "8080:8080"
     environment:
-      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/${MYSQL_DATABASE}?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
-      SPRING_DATASOURCE_USERNAME: ${DB_USERNAME}
-      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
       GRPC_NOTIFICATION_HOST: notification-service
-      GRPC_NOTIFICATION_PORT: 9091
-      BANNEDHOSTS: ${BANNED_HOSTS}
-      URLEXPIRATIONHOURS: ${URL_EXPIRATION_HOURS}
+      GRPC_NOTIFICATION_PORT: ${NOTIFICATION_GRPC_PORT}
+      BANNED_HOSTS: ${BANNED_HOSTS}
+      URL_EXPIRATION_HOURS: ${URL_EXPIRATION_HOURS}
       NOTIFICATION_THRESHOLD: ${NOTIFICATION_THRESHOLD}
-      APP_BASEURL: ${APP_BASE_URL}
+      APP_BASE_URL: ${APP_BASE_URL}
+      REST_SERVICE_PORT: ${REST_SERVICE_PORT}
     depends_on:
       mysql:
         condition: service_healthy
@@ -75,6 +80,8 @@ services:
       JWT_ACCESS_TOKEN_EXPIRATION: ${JWT_ACCESS_TOKEN_EXPIRATION}
       JWT_REFRESH_TOKEN_EXPIRATION: ${JWT_REFRESH_TOKEN_EXPIRATION}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      USER_SERVICE_PORT: ${USER_SERVICE_PORT}
+      USER_GRPC_PORT: ${USER_GRPC_PORT}
     depends_on:
       mysql:
         condition: service_healthy
