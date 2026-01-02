@@ -1,9 +1,13 @@
 package com.example.service;
 
+import com.example.client.GrpcNotificationClient;
 import com.example.dto.NotificationDto;
 import com.example.dto.PagedNotificationsDto;
+import com.example.grpc.notification.GetNotificationsRequest;
 import com.example.grpc.notification.GetNotificationsResponse;
 import com.example.grpc.notification.Notification;
+import com.example.grpc.notification.NotificationRequest;
+import com.example.grpc.notification.NotificationType;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -18,11 +22,35 @@ public class NotificationService {
   }
 
   public void sendUrlCreatedNotification(String shortCode, String longUrl) {
-    notificationClient.sendUrlCreatedNotification(shortCode, longUrl);
+    try {
+      NotificationRequest request =
+          NotificationRequest.newBuilder()
+              .setNotificationType(NotificationType.NEWURL)
+              .setShortCode(shortCode)
+              .setMessage("New URL Created: " + longUrl)
+              .build();
+
+      notificationClient.notify(request);
+
+    } catch (Exception e) {
+      System.err.println("Failed to send notification: " + e.getMessage());
+    }
   }
 
   public void sendThresholdNotification(String shortCode) {
-    notificationClient.sendThresholdNotification(shortCode);
+    try {
+      NotificationRequest request =
+          NotificationRequest.newBuilder()
+              .setNotificationType(NotificationType.THRESHOLD)
+              .setShortCode(shortCode)
+              .setMessage("Threshold reached for shortcode - '" + shortCode + "'")
+              .build();
+
+      notificationClient.notify(request);
+
+    } catch (Exception e) {
+      System.err.println("Failed to send notification: " + e.getMessage());
+    }
   }
 
   public PagedNotificationsDto getNotifications(
@@ -50,8 +78,25 @@ public class NotificationService {
     }
     String direction = sortDirection != null ? sortDirection : "desc";
 
-    GetNotificationsResponse notificationsResponse =
-        notificationClient.getNotifications(pageNo, pageSize, validSortBy, direction);
+    GetNotificationsRequest.Builder requestBuilder =
+        GetNotificationsRequest.newBuilder().setPageNo(pageNo).setPageSize(pageSize);
+
+    if (validSortBy != null) {
+      requestBuilder.setSortBy(validSortBy);
+    }
+    if (direction != null) {
+      requestBuilder.setSortDirection(direction);
+    }
+
+    GetNotificationsRequest request = requestBuilder.build();
+
+    GetNotificationsResponse notificationsResponse;
+    try {
+      notificationsResponse = notificationClient.getNotifications(request);
+    } catch (Exception e) {
+      System.err.println("Failed to fetch notifications: " + e.getMessage());
+      notificationsResponse = GetNotificationsResponse.getDefaultInstance();
+    }
 
     List<NotificationDto> notifications =
         notificationsResponse.getNotificationsList().stream()
