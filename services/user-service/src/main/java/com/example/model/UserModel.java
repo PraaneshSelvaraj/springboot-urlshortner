@@ -36,8 +36,8 @@ public class UserModel {
   @Column(name = "auth_provider")
   private String authProvider;
 
-  @Column(name = "refresh_token")
-  private String refreshToken;
+  @Column(name = "refresh_token_jti")
+  private String refreshTokenJti;
 
   @Column(name = "is_deleted")
   private boolean isDeleted;

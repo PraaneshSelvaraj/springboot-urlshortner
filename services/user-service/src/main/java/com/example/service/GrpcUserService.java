@@ -158,9 +158,10 @@ public class GrpcUserService extends UserServiceGrpc.UserServiceImplBase {
       }
 
       String accessToken = jwtUtil.createToken(user.getEmail(), user.getRole());
-      String refreshToken = jwtUtil.createRefreshToken(user.getEmail(), user.getRole());
+      JwtUtil.RefreshTokenPair refreshToken =
+          jwtUtil.createRefreshToken(user.getEmail(), user.getRole());
 
-      user.setRefreshToken(refreshToken);
+      user.setRefreshTokenJti(refreshToken.jti());
       userRepository.save(user);
 
       Instant createdAtInstant = user.getCreatedAt().atZone(ZoneId.systemDefault()).toInstant();
@@ -191,7 +192,7 @@ public class GrpcUserService extends UserServiceGrpc.UserServiceImplBase {
               .setSuccess(true)
               .setIsUserCreated(false)
               .setAccessToken(accessToken)
-              .setRefreshToken(refreshToken)
+              .setRefreshToken(refreshToken.token())
               .setMessage("Login was Successful")
               .setUser(userProto)
               .build();
@@ -251,10 +252,11 @@ public class GrpcUserService extends UserServiceGrpc.UserServiceImplBase {
         }
 
         String accessToken = jwtUtil.createToken(existingUser.getEmail(), existingUser.getRole());
-        String refreshToken =
+        JwtUtil.RefreshTokenPair refreshToken =
             jwtUtil.createRefreshToken(existingUser.getEmail(), existingUser.getRole());
 
-        int rowsAffected = userRepository.updateRefreshToken(existingUser.getId(), refreshToken);
+        int rowsAffected =
+            userRepository.updateRefreshToken(existingUser.getId(), refreshToken.jti());
         if (rowsAffected <= 0) {
           throw Status.UNKNOWN.withDescription("Unable to login").asRuntimeException();
         }
@@ -290,7 +292,7 @@ public class GrpcUserService extends UserServiceGrpc.UserServiceImplBase {
                 .setSuccess(true)
                 .setIsUserCreated(false)
                 .setAccessToken(accessToken)
-                .setRefreshToken(refreshToken)
+                .setRefreshToken(refreshToken.token())
                 .setMessage("Login was Successful")
                 .setUser(userProto)
                 .build();
@@ -306,7 +308,7 @@ public class GrpcUserService extends UserServiceGrpc.UserServiceImplBase {
         newUser.setRole("USER");
         newUser.setGoogleId(googleUserInfo.getGoogleId());
         newUser.setAuthProvider("GOOGLE");
-        newUser.setRefreshToken(null);
+        newUser.setRefreshTokenJti(null);
         newUser.setDeleted(false);
 
         try {
@@ -314,10 +316,10 @@ public class GrpcUserService extends UserServiceGrpc.UserServiceImplBase {
           userRepository.flush();
 
           String accessToken = jwtUtil.createToken(savedUser.getEmail(), savedUser.getRole());
-          String refreshToken =
+          JwtUtil.RefreshTokenPair refreshToken =
               jwtUtil.createRefreshToken(savedUser.getEmail(), savedUser.getRole());
 
-          userRepository.updateRefreshToken(savedUser.getId(), refreshToken);
+          userRepository.updateRefreshToken(savedUser.getId(), refreshToken.token());
           UserModel updatedUser = userRepository.findById(savedUser.getId()).orElseThrow();
 
           Instant createdAtInstant =
@@ -350,7 +352,7 @@ public class GrpcUserService extends UserServiceGrpc.UserServiceImplBase {
                   .setSuccess(true)
                   .setIsUserCreated(true)
                   .setAccessToken(accessToken)
-                  .setRefreshToken(refreshToken)
+                  .setRefreshToken(refreshToken.token())
                   .setMessage("Account created and login successful")
                   .setUser(userProto)
                   .build();
@@ -541,21 +543,23 @@ public class GrpcUserService extends UserServiceGrpc.UserServiceImplBase {
                           .withDescription("Unable to find the user")
                           .asRuntimeException());
 
-      String storedRefreshToken = user.getRefreshToken();
-      if (storedRefreshToken == null || !storedRefreshToken.equals(refreshToken)) {
+      String storedRefreshTokenJti = user.getRefreshTokenJti();
+      String refreshTokenJti = jwtUtil.extractJti(refreshToken);
+      if (storedRefreshTokenJti == null || !storedRefreshTokenJti.equals(refreshTokenJti)) {
         throw Status.UNAUTHENTICATED.withDescription("Invalid Refresh Token").asRuntimeException();
       }
 
       String newAccessToken = jwtUtil.createToken(user.getEmail(), user.getRole());
-      String newRefreshToken = jwtUtil.createRefreshToken(user.getEmail(), user.getRole());
+      JwtUtil.RefreshTokenPair newRefreshToken =
+          jwtUtil.createRefreshToken(user.getEmail(), user.getRole());
 
-      user.setRefreshToken(newRefreshToken);
+      user.setRefreshTokenJti(newRefreshToken.jti());
       userRepository.save(user);
 
       RefreshTokenResponse response =
           RefreshTokenResponse.newBuilder()
               .setAccessToken(newAccessToken)
-              .setRefreshToken(newRefreshToken)
+              .setRefreshToken(newRefreshToken.token())
               .build();
 
       responseObserver.onNext(response);
