@@ -578,7 +578,47 @@ public class GrpcUserService extends UserServiceGrpc.UserServiceImplBase {
   @Override
   public void logoutUser(
       LogoutUserRequest request, StreamObserver<LogoutUserResponse> responseObserver) {
-    responseObserver.onNext(LogoutUserResponse.newBuilder().build());
-    responseObserver.onCompleted();
+    long id = request.getId();
+
+    try {
+      if (id <= 0) {
+        throw Status.INVALID_ARGUMENT.withDescription("ID should be valid.").asRuntimeException();
+      }
+
+      UserModel user =
+          userRepository
+              .findById(id)
+              .orElseThrow(
+                  () ->
+                      Status.NOT_FOUND.withDescription("Unable to find user").asRuntimeException());
+
+      if (user.isDeleted()) {
+        throw Status.PERMISSION_DENIED
+            .withDescription("Account has been deactivated")
+            .asRuntimeException();
+      }
+
+      user.setRefreshTokenJti(null);
+      userRepository.save(user);
+
+      LogoutUserResponse response =
+          LogoutUserResponse.newBuilder()
+              .setSuccess(true)
+              .setMessage("Logout was successful")
+              .build();
+
+      responseObserver.onNext(response);
+      responseObserver.onCompleted();
+
+    } catch (StatusRuntimeException e) {
+      System.err.println("gRPC Error: " + e.getStatus().getDescription());
+      responseObserver.onError(e);
+
+    } catch (Exception e) {
+      responseObserver.onError(
+          Status.INTERNAL
+              .withDescription("An unexpected error occurred: " + e.getMessage())
+              .asRuntimeException());
+    }
   }
 }
