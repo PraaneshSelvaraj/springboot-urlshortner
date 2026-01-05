@@ -4,6 +4,7 @@ import com.example.dto.UrlDto;
 import com.example.exception.*;
 import com.example.model.Url;
 import com.example.repository.UrlRepository;
+import io.grpc.Status;
 import java.net.InetAddress;
 import java.net.URI;
 import java.time.LocalDateTime;
@@ -104,11 +105,30 @@ public class UrlService {
     String validDirection = sortDirection != null ? sortDirection : "desc";
 
     Sort.Direction direction =
-        validDirection.equalsIgnoreCase("asc") ? Sort.Direction.ASC : Sort.Direction.DESC;
+        switch (validDirection.toUpperCase()) {
+          case "ASC" -> Sort.Direction.ASC;
+          case "DESC" -> Sort.Direction.DESC;
+          default ->
+              throw Status.INVALID_ARGUMENT
+                  .withDescription(
+                      "Invalid sortDirection field: '"
+                          + sortDirection
+                          + "'. Allowed fields: ASC, DESC")
+                  .asRuntimeException();
+        };
 
     Pageable pageable = PageRequest.of(pageNo, pageSize, Sort.by(direction, validSortBy));
 
-    return urlRepo.findAll(pageable);
+    Page<Url> urlPage = urlRepo.findAll(pageable);
+
+    if (pageNo > 0 && urlPage.getTotalPages() > 0 && pageNo >= urlPage.getTotalPages()) {
+      throw Status.INVALID_ARGUMENT
+          .withDescription(
+              "Page number " + pageNo + " exceeds total pages (" + urlPage.getTotalPages() + ")")
+          .asRuntimeException();
+    }
+
+    return urlPage;
   }
 
   public UrlDto getUrlByShortCode(String shortCode) {

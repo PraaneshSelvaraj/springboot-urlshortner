@@ -1,6 +1,7 @@
 package com.example.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.catchThrowable;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
@@ -87,8 +88,10 @@ class NotificationServiceTest {
     when(grpcNotificationClient.notify(any(NotificationRequest.class)))
         .thenThrow(new RuntimeException("gRPC error"));
 
-    // Should not throw exception - error is logged and swallowed
-    notificationService.sendUrlCreatedNotification(shortCode, longUrl);
+    // Should propagate the exception
+    assertThatThrownBy(() -> notificationService.sendUrlCreatedNotification(shortCode, longUrl))
+        .isInstanceOf(RuntimeException.class)
+        .hasMessageContaining("gRPC error");
 
     verify(grpcNotificationClient).notify(any(NotificationRequest.class));
   }
@@ -101,8 +104,10 @@ class NotificationServiceTest {
     when(grpcNotificationClient.notify(any(NotificationRequest.class)))
         .thenThrow(new RuntimeException("gRPC error"));
 
-    // Should not throw exception - error is logged and swallowed
-    notificationService.sendThresholdNotification(shortCode);
+    // Should propagate the exception
+    assertThatThrownBy(() -> notificationService.sendThresholdNotification(shortCode))
+        .isInstanceOf(RuntimeException.class)
+        .hasMessageContaining("gRPC error");
 
     verify(grpcNotificationClient).notify(any(NotificationRequest.class));
   }
@@ -469,24 +474,7 @@ class NotificationServiceTest {
     assertThat(capturedRequest.getPageNo()).isEqualTo(0);
     assertThat(capturedRequest.getPageSize()).isEqualTo(10);
     assertThat(capturedRequest.getSortBy()).isEqualTo("id");
-    assertThat(capturedRequest.getSortDirection()).isEqualTo("desc");
+    assertThat(capturedRequest.getSortDirection()).isEqualTo("DESC");
   }
 
-  @Test
-  @DisplayName("Should handle exception from gRPC client and return default response")
-  void shouldHandleExceptionFromGrpcClientAndReturnDefaultResponse() {
-    when(grpcNotificationClient.getNotifications(any(GetNotificationsRequest.class)))
-        .thenThrow(new RuntimeException("gRPC error"));
-
-    PagedNotificationsDto result = notificationService.getNotifications(0, 10, null, null);
-
-    assertThat(result).isNotNull();
-    assertThat(result.getNotifications()).isEmpty();
-    assertThat(result.getPageNo()).isEqualTo(0);
-    assertThat(result.getPageSize()).isEqualTo(0);
-    assertThat(result.getTotalPages()).isEqualTo(0);
-    assertThat(result.getTotalElements()).isEqualTo(0L);
-
-    verify(grpcNotificationClient).getNotifications(any(GetNotificationsRequest.class));
-  }
 }

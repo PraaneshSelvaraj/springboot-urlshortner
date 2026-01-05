@@ -123,10 +123,8 @@ class UrlControllerTest {
 
     mockMvc
         .perform(get("/api/urls").param("pageNo", "-1").param("pageSize", "10"))
-        .andExpect(status().isInternalServerError())
-        .andExpect(
-            jsonPath("$.message")
-                .value("An unexpected error occurred: Page number cannot be negative"));
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.message").value("Page number cannot be negative"));
 
     verify(urlService).getUrls(eq(-1), eq(10), isNull(), isNull());
   }
@@ -139,10 +137,8 @@ class UrlControllerTest {
 
     mockMvc
         .perform(get("/api/urls").param("pageNo", "0").param("pageSize", "0"))
-        .andExpect(status().isInternalServerError())
-        .andExpect(
-            jsonPath("$.message")
-                .value("An unexpected error occurred: Page size must be greater than zero."));
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.message").value("Page size must be greater than zero."));
 
     verify(urlService).getUrls(eq(0), eq(0), isNull(), isNull());
   }
@@ -155,10 +151,8 @@ class UrlControllerTest {
 
     mockMvc
         .perform(get("/api/urls").param("pageNo", "0").param("pageSize", "-5"))
-        .andExpect(status().isInternalServerError())
-        .andExpect(
-            jsonPath("$.message")
-                .value("An unexpected error occurred: Page size must be greater than zero."));
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.message").value("Page size must be greater than zero."));
 
     verify(urlService).getUrls(eq(0), eq(-5), isNull(), isNull());
   }

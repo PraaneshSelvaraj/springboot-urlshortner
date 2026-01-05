@@ -24,7 +24,7 @@ public class GrpcNotificationClient {
   public void init() {
     this.channel = ManagedChannelBuilder.forAddress(host, port).usePlaintext().build();
     this.stub = NotificationServiceGrpc.newBlockingStub(channel);
-    System.out.println("gRPC Client connected to " + host + ":" + port);
+    System.out.println("Notification gRPC Client connected to " + host + ":" + port);
   }
 
   @PreDestroy

@@ -10,9 +10,13 @@ import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
 import java.time.Instant;
-import java.time.ZoneId;
+import java.time.ZoneOffset;
+import java.util.List;
 import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.*;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -20,14 +24,14 @@ import org.springframework.stereotype.Service;
 @Service
 public class GrpcUserService extends UserServiceGrpc.UserServiceImplBase {
 
-  private final UserRepository userRepository;
+  private final UserRepository userRepo;
   private final PasswordEncoder passwordEncoder;
   private final JwtUtil jwtUtil;
   private final GoogleAuthService googleAuthService;
 
   public GrpcUserService(
-      UserRepository userRepository, JwtUtil jwtUtil, GoogleAuthService googleAuthService) {
-    this.userRepository = userRepository;
+      UserRepository userRepo, JwtUtil jwtUtil, GoogleAuthService googleAuthService) {
+    this.userRepo = userRepo;
     this.passwordEncoder = new BCryptPasswordEncoder();
     this.jwtUtil = jwtUtil;
     this.googleAuthService = googleAuthService;
@@ -67,13 +71,11 @@ public class GrpcUserService extends UserServiceGrpc.UserServiceImplBase {
       newUser.setRole(role.toString());
       newUser.setAuthProvider("LOCAL");
 
-      UserModel userAdded = userRepository.save(newUser);
-      userRepository.flush();
+      UserModel userAdded = userRepo.save(newUser);
+      userRepo.flush();
 
-      Instant createdAtInstant =
-          userAdded.getCreatedAt().atZone(ZoneId.systemDefault()).toInstant();
-      Instant updatedAtInstant =
-          userAdded.getUpdatedAt().atZone(ZoneId.systemDefault()).toInstant();
+      Instant createdAtInstant = userAdded.getCreatedAt().atZone(ZoneOffset.UTC).toInstant();
+      Instant updatedAtInstant = userAdded.getUpdatedAt().atZone(ZoneOffset.UTC).toInstant();
 
       User user =
           User.newBuilder()
@@ -130,7 +132,7 @@ public class GrpcUserService extends UserServiceGrpc.UserServiceImplBase {
       }
 
       UserModel user =
-          userRepository
+          userRepo
               .findByEmail(email)
               .orElseThrow(
                   () ->
@@ -162,10 +164,10 @@ public class GrpcUserService extends UserServiceGrpc.UserServiceImplBase {
           jwtUtil.createRefreshToken(user.getEmail(), user.getRole());
 
       user.setRefreshTokenJti(refreshToken.jti());
-      userRepository.save(user);
+      userRepo.save(user);
 
-      Instant createdAtInstant = user.getCreatedAt().atZone(ZoneId.systemDefault()).toInstant();
-      Instant updatedAtInstant = user.getUpdatedAt().atZone(ZoneId.systemDefault()).toInstant();
+      Instant createdAtInstant = user.getCreatedAt().atZone(ZoneOffset.UTC).toInstant();
+      Instant updatedAtInstant = user.getUpdatedAt().atZone(ZoneOffset.UTC).toInstant();
 
       User userProto =
           User.newBuilder()
@@ -230,7 +232,7 @@ public class GrpcUserService extends UserServiceGrpc.UserServiceImplBase {
       }
 
       GoogleUserInfo googleUserInfo = googleUserInfoOpt.get();
-      Optional<UserModel> existingUserOpt = userRepository.findByEmail(googleUserInfo.getEmail());
+      Optional<UserModel> existingUserOpt = userRepo.findByEmail(googleUserInfo.getEmail());
 
       if (existingUserOpt.isPresent()) {
         UserModel existingUser = existingUserOpt.get();
@@ -255,17 +257,14 @@ public class GrpcUserService extends UserServiceGrpc.UserServiceImplBase {
         JwtUtil.RefreshTokenPair refreshToken =
             jwtUtil.createRefreshToken(existingUser.getEmail(), existingUser.getRole());
 
-        int rowsAffected =
-            userRepository.updateRefreshToken(existingUser.getId(), refreshToken.jti());
+        int rowsAffected = userRepo.updateRefreshToken(existingUser.getId(), refreshToken.jti());
         if (rowsAffected <= 0) {
           throw Status.UNKNOWN.withDescription("Unable to login").asRuntimeException();
         }
 
-        UserModel updatedUser = userRepository.findById(existingUser.getId()).orElseThrow();
-        Instant createdAtInstant =
-            updatedUser.getCreatedAt().atZone(ZoneId.systemDefault()).toInstant();
-        Instant updatedAtInstant =
-            updatedUser.getUpdatedAt().atZone(ZoneId.systemDefault()).toInstant();
+        UserModel updatedUser = userRepo.findById(existingUser.getId()).orElseThrow();
+        Instant createdAtInstant = updatedUser.getCreatedAt().atZone(ZoneOffset.UTC).toInstant();
+        Instant updatedAtInstant = updatedUser.getUpdatedAt().atZone(ZoneOffset.UTC).toInstant();
 
         User userProto =
             User.newBuilder()
@@ -312,20 +311,18 @@ public class GrpcUserService extends UserServiceGrpc.UserServiceImplBase {
         newUser.setDeleted(false);
 
         try {
-          UserModel savedUser = userRepository.save(newUser);
-          userRepository.flush();
+          UserModel savedUser = userRepo.save(newUser);
+          userRepo.flush();
 
           String accessToken = jwtUtil.createToken(savedUser.getEmail(), savedUser.getRole());
           JwtUtil.RefreshTokenPair refreshToken =
               jwtUtil.createRefreshToken(savedUser.getEmail(), savedUser.getRole());
 
-          userRepository.updateRefreshToken(savedUser.getId(), refreshToken.token());
-          UserModel updatedUser = userRepository.findById(savedUser.getId()).orElseThrow();
+          userRepo.updateRefreshToken(savedUser.getId(), refreshToken.token());
+          UserModel updatedUser = userRepo.findById(savedUser.getId()).orElseThrow();
 
-          Instant createdAtInstant =
-              updatedUser.getCreatedAt().atZone(ZoneId.systemDefault()).toInstant();
-          Instant updatedAtInstant =
-              updatedUser.getUpdatedAt().atZone(ZoneId.systemDefault()).toInstant();
+          Instant createdAtInstant = updatedUser.getCreatedAt().atZone(ZoneOffset.UTC).toInstant();
+          Instant updatedAtInstant = updatedUser.getUpdatedAt().atZone(ZoneOffset.UTC).toInstant();
 
           User userProto =
               User.newBuilder()
@@ -384,7 +381,7 @@ public class GrpcUserService extends UserServiceGrpc.UserServiceImplBase {
   }
 
   @Override
-  public void getUserById(GetUserRequest request, StreamObserver<User> responseObserver) {
+  public void getUserById(GetUserByIdRequest request, StreamObserver<User> responseObserver) {
     try {
       long id = request.getId();
       if (id <= 0) {
@@ -392,7 +389,7 @@ public class GrpcUserService extends UserServiceGrpc.UserServiceImplBase {
       }
 
       UserModel user =
-          userRepository
+          userRepo
               .findById(id)
               .orElseThrow(
                   () ->
@@ -439,8 +436,8 @@ public class GrpcUserService extends UserServiceGrpc.UserServiceImplBase {
           throw new IllegalArgumentException("Unknown user role: " + roleStr);
       }
 
-      Instant createdAtInstant = user.getCreatedAt().atZone(ZoneId.systemDefault()).toInstant();
-      Instant updatedAtInstant = user.getUpdatedAt().atZone(ZoneId.systemDefault()).toInstant();
+      Instant createdAtInstant = user.getCreatedAt().atZone(ZoneOffset.UTC).toInstant();
+      Instant updatedAtInstant = user.getUpdatedAt().atZone(ZoneOffset.UTC).toInstant();
 
       User userProto =
           User.newBuilder()
@@ -478,6 +475,90 @@ public class GrpcUserService extends UserServiceGrpc.UserServiceImplBase {
   }
 
   @Override
+  public void getUsers(GetUsersRequest request, StreamObserver<GetUsersResponse> responseObserver) {
+    try {
+      int pageNo = request.hasPageNo() ? request.getPageNo() : 0;
+      int pageSize = request.hasPageSize() ? request.getPageSize() : 10;
+      String sortBy = request.hasSortBy() ? request.getSortBy() : "id";
+      String sortDirection = request.hasSortDirection() ? request.getSortDirection() : "DESC";
+
+      if (pageNo < 0) {
+        throw Status.INVALID_ARGUMENT
+            .withDescription("Page number cannot be negative")
+            .asRuntimeException();
+      }
+
+      if (pageSize <= 0) {
+        throw Status.INVALID_ARGUMENT
+            .withDescription("Page size must be greater than zero")
+            .asRuntimeException();
+      }
+
+      Set<String> allowedSortField =
+          Set.of("id", "username", "email", "role", "authProvider", "createdAt", "updatedAt");
+      if (sortBy != null && !allowedSortField.contains(sortBy)) {
+        throw Status.INVALID_ARGUMENT
+            .withDescription(
+                "Invalid sortBy field: '"
+                    + sortBy
+                    + "'. Allowed fields: "
+                    + String.join(", ", allowedSortField))
+            .asRuntimeException();
+      }
+
+      Sort.Direction direction =
+          switch (sortDirection.toUpperCase()) {
+            case "ASC" -> Sort.Direction.ASC;
+            case "DESC" -> Sort.Direction.DESC;
+            default ->
+                throw Status.INVALID_ARGUMENT
+                    .withDescription(
+                        "Invalid sortDirection field: '"
+                            + sortDirection
+                            + "'. Allowed fields: ASC, DESC")
+                    .asRuntimeException();
+          };
+
+      Pageable pageable = PageRequest.of(pageNo, pageSize, Sort.by(direction, sortBy));
+      Page<UserModel> userPage;
+
+      userPage = userRepo.findAll(pageable);
+
+      if (pageNo > 0 && userPage.getTotalPages() > 0 && pageNo >= userPage.getTotalPages()) {
+        throw Status.INVALID_ARGUMENT
+            .withDescription(
+                "Page number " + pageNo + " exceeds total pages (" + userPage.getTotalPages() + ")")
+            .asRuntimeException();
+      }
+
+      List<User> users =
+          userPage.getContent().stream().map(this::mapToGrpcUser).collect(Collectors.toList());
+
+      GetUsersResponse response =
+          GetUsersResponse.newBuilder()
+              .addAllUsers(users)
+              .setPageNo(userPage.getNumber())
+              .setPageSize(userPage.getSize())
+              .setTotalElements(userPage.getTotalElements())
+              .setTotalPages(userPage.getTotalPages())
+              .build();
+
+      responseObserver.onNext(response);
+      responseObserver.onCompleted();
+
+    } catch (StatusRuntimeException e) {
+      System.err.println("gRPC Error: " + e.getStatus().getDescription());
+      responseObserver.onError(e);
+
+    } catch (Exception e) {
+      responseObserver.onError(
+          Status.INTERNAL
+              .withDescription("An unexpected error occurred: " + e.getMessage())
+              .asRuntimeException());
+    }
+  }
+
+  @Override
   public void deleteUserById(
       DeleteUserRequest request, StreamObserver<DeleteUserResponse> responseObserver) {
     try {
@@ -486,7 +567,7 @@ public class GrpcUserService extends UserServiceGrpc.UserServiceImplBase {
         throw Status.INVALID_ARGUMENT.withDescription("ID should be valid.").asRuntimeException();
       }
 
-      int rowsAffected = userRepository.softDeleteById(id);
+      int rowsAffected = userRepo.softDeleteById(id);
 
       if (rowsAffected == 0) {
         throw Status.UNKNOWN
@@ -535,7 +616,7 @@ public class GrpcUserService extends UserServiceGrpc.UserServiceImplBase {
       }
 
       UserModel user =
-          userRepository
+          userRepo
               .findByEmail(email)
               .orElseThrow(
                   () ->
@@ -554,7 +635,7 @@ public class GrpcUserService extends UserServiceGrpc.UserServiceImplBase {
           jwtUtil.createRefreshToken(user.getEmail(), user.getRole());
 
       user.setRefreshTokenJti(newRefreshToken.jti());
-      userRepository.save(user);
+      userRepo.save(user);
 
       RefreshTokenResponse response =
           RefreshTokenResponse.newBuilder()
@@ -586,7 +667,7 @@ public class GrpcUserService extends UserServiceGrpc.UserServiceImplBase {
       }
 
       UserModel user =
-          userRepository
+          userRepo
               .findById(id)
               .orElseThrow(
                   () ->
@@ -599,7 +680,7 @@ public class GrpcUserService extends UserServiceGrpc.UserServiceImplBase {
       }
 
       user.setRefreshTokenJti(null);
-      userRepository.save(user);
+      userRepo.save(user);
 
       LogoutUserResponse response =
           LogoutUserResponse.newBuilder()
@@ -620,5 +701,49 @@ public class GrpcUserService extends UserServiceGrpc.UserServiceImplBase {
               .withDescription("An unexpected error occurred: " + e.getMessage())
               .asRuntimeException());
     }
+  }
+
+  private User mapToGrpcUser(UserModel userModel) {
+    UserRole role =
+        switch (userModel.getRole().toUpperCase()) {
+          case "ADMIN" -> UserRole.ADMIN;
+          case "USER" -> UserRole.USER;
+          default ->
+              throw new IllegalArgumentException(
+                  "Invalid role: " + userModel.getRole() + ". Must be USER or ADMIN");
+        };
+
+    AuthProvider authProvider =
+        userModel.getAuthProvider().equalsIgnoreCase("LOCAL")
+            ? AuthProvider.LOCAL
+            : AuthProvider.GOOGLE;
+
+    Instant createdAtInstant = userModel.getCreatedAt().toInstant(ZoneOffset.UTC);
+    Timestamp createdAt =
+        Timestamp.newBuilder()
+            .setSeconds(createdAtInstant.getEpochSecond())
+            .setNanos(createdAtInstant.getNano())
+            .build();
+
+    Instant updatedAtinstant = userModel.getCreatedAt().toInstant(ZoneOffset.UTC);
+    Timestamp updatedAt =
+        Timestamp.newBuilder()
+            .setSeconds(updatedAtinstant.getEpochSecond())
+            .setNanos(updatedAtinstant.getNano())
+            .build();
+
+    User user =
+        User.newBuilder()
+            .setId(userModel.getId())
+            .setUsername(userModel.getUsername())
+            .setEmail(userModel.getEmail())
+            .setRole(role)
+            .setAuthProvider(authProvider)
+            .setIsDeleted(userModel.isDeleted())
+            .setCreatedAt(createdAt)
+            .setUpdatedAt(updatedAt)
+            .build();
+
+    return user;
   }
 }

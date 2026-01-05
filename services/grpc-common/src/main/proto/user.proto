@@ -47,18 +47,30 @@ message User {
   int64 id = 1;
   string username = 2;
   string email = 3;
-  optional string password = 4;
   UserRole role = 5;
-  optional string google_id = 6;
   AuthProvider auth_provider = 7;
-  optional string refresh_token = 8;
   bool is_deleted = 9;
   google.protobuf.Timestamp created_at = 10;
   google.protobuf.Timestamp updated_at = 11;
 }
 
-message GetUserRequest {
+message GetUserByIdRequest {
   int64 id = 1;
+}
+
+message GetUsersRequest{
+  optional int32 pageNo = 1;
+  optional int32 pageSize = 2;
+  optional string sortBy = 3;
+  optional string sortDirection = 4;
+}
+
+message GetUsersResponse{
+  repeated User users = 1;
+  int32 totalPages = 2;
+  int64 totalElements = 3;
+  int32 pageNo = 4;
+  int32 pageSize = 5;
 }
 
 message DeleteUserRequest {
@@ -92,7 +104,8 @@ service UserService {
   rpc createUser(CreateUserRequest) returns (User);
   rpc userLogin(LoginRequest) returns (LoginResponse);
   rpc googleLogin(GoogleLoginRequest) returns (LoginResponse);
-  rpc getUserById(GetUserRequest) returns (User);
+  rpc getUserById(GetUserByIdRequest) returns (User);
+  rpc getUsers(GetUsersRequest) returns (GetUsersResponse);
   rpc deleteUserById(DeleteUserRequest) returns (DeleteUserResponse);
   rpc refreshTokens(RefreshTokenRequest) returns (RefreshTokenResponse);
   rpc logoutUser(LogoutUserRequest) returns (LogoutUserResponse);

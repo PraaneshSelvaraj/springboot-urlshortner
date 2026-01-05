@@ -101,10 +101,10 @@ class NotificationControllerTest {
 
     mockMvc
         .perform(get("/api/notifications").param("pageNo", "-1").param("pageSize", "10"))
-        .andExpect(status().isInternalServerError())
+        .andExpect(status().isBadRequest())
         .andExpect(
             jsonPath("$.message")
-                .value("An unexpected error occurred: Page number cannot be negative"));
+                .value("Page number cannot be negative"));
 
     verify(notificationService).getNotifications(eq(-1), eq(10), isNull(), isNull());
   }
@@ -117,10 +117,10 @@ class NotificationControllerTest {
 
     mockMvc
         .perform(get("/api/notifications").param("pageNo", "0").param("pageSize", "0"))
-        .andExpect(status().isInternalServerError())
+        .andExpect(status().isBadRequest())
         .andExpect(
             jsonPath("$.message")
-                .value("An unexpected error occurred: Page size must be greater than zero."));
+                .value("Page size must be greater than zero."));
 
     verify(notificationService).getNotifications(eq(0), eq(0), isNull(), isNull());
   }
@@ -133,10 +133,10 @@ class NotificationControllerTest {
 
     mockMvc
         .perform(get("/api/notifications").param("pageNo", "0").param("pageSize", "-5"))
-        .andExpect(status().isInternalServerError())
+        .andExpect(status().isBadRequest())
         .andExpect(
             jsonPath("$.message")
-                .value("An unexpected error occurred: Page size must be greater than zero."));
+                .value("Page size must be greater than zero."));
 
     verify(notificationService).getNotifications(eq(0), eq(-5), isNull(), isNull());
   }
