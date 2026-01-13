@@ -4,9 +4,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import io.jsonwebtoken.JwtBuilder;
 import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.security.Keys;
+import io.jsonwebtoken.SignatureAlgorithm;
+import java.security.KeyPair;
+import java.security.KeyPairGenerator;
+import java.security.PrivateKey;
+import java.security.PublicKey;
+import java.util.Base64;
 import java.util.Date;
-import javax.crypto.SecretKey;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -15,12 +19,20 @@ import org.junit.jupiter.api.Test;
 class JwtUtilTest {
 
   private JwtUtil jwtUtil;
-  private String testSecret;
+  private PrivateKey testPrivateKey;
+  private PublicKey testPublicKey;
 
   @BeforeEach
-  void setUp() {
-    testSecret = "testSecretKeyThatIsAtLeast256BitsLongForHS256Algorithm12345678";
-    jwtUtil = new JwtUtil(testSecret);
+  void setUp() throws Exception {
+    KeyPairGenerator keyGen = KeyPairGenerator.getInstance("RSA");
+    keyGen.initialize(2048);
+    KeyPair pair = keyGen.generateKeyPair();
+
+    testPrivateKey = pair.getPrivate();
+    testPublicKey = pair.getPublic();
+
+    String publicKeyBase64 = Base64.getEncoder().encodeToString(testPublicKey.getEncoded());
+    jwtUtil = new JwtUtil(publicKeyBase64);
   }
 
   @Test
@@ -45,9 +57,11 @@ class JwtUtilTest {
 
   @Test
   @DisplayName("Should reject token with invalid signature")
-  void shouldRejectTokenWithInvalidSignature() {
-    String differentSecret = "differentSecretKeyThatIsAtLeast256BitsLongForHS256Algorithm1234";
-    SecretKey key = Keys.hmacShaKeyFor(differentSecret.getBytes());
+  void shouldRejectTokenWithInvalidSignature() throws Exception {
+    KeyPairGenerator keyGen = KeyPairGenerator.getInstance("RSA");
+    keyGen.initialize(2048);
+    KeyPair differentPair = keyGen.generateKeyPair();
+
     String token =
         Jwts.builder()
             .subject("test@example.com")
@@ -56,7 +70,7 @@ class JwtUtilTest {
             .claim("type", "auth")
             .issuedAt(new Date())
             .expiration(new Date(System.currentTimeMillis() + 3600000))
-            .signWith(key)
+            .signWith(differentPair.getPrivate(), SignatureAlgorithm.RS256)
             .compact();
 
     boolean isValid = jwtUtil.validateToken(token);
@@ -128,7 +142,6 @@ class JwtUtilTest {
   @Test
   @DisplayName("Should handle token without userId claim")
   void shouldHandleTokenWithoutUserIdClaim() {
-    SecretKey key = Keys.hmacShaKeyFor(testSecret.getBytes());
     String token =
         Jwts.builder()
             .subject("test@example.com")
@@ -136,7 +149,7 @@ class JwtUtilTest {
             .claim("type", "auth")
             .issuedAt(new Date())
             .expiration(new Date(System.currentTimeMillis() + 3600000))
-            .signWith(key)
+            .signWith(testPrivateKey, SignatureAlgorithm.RS256)
             .compact();
 
     Long userId = jwtUtil.extractUserId(token);
@@ -176,7 +189,6 @@ class JwtUtilTest {
 
   private String createTestToken(
       Long userId, String email, String role, String type, boolean expired) {
-    SecretKey key = Keys.hmacShaKeyFor(testSecret.getBytes());
     Date issuedAt = new Date();
     Date expiration =
         expired
@@ -184,7 +196,11 @@ class JwtUtilTest {
             : new Date(System.currentTimeMillis() + 3600000);
 
     JwtBuilder builder =
-        Jwts.builder().subject(email).issuedAt(issuedAt).expiration(expiration).signWith(key);
+        Jwts.builder()
+            .subject(email)
+            .issuedAt(issuedAt)
+            .expiration(expiration)
+            .signWith(testPrivateKey, SignatureAlgorithm.RS256);
 
     if (userId != null) {
       builder.claim("userId", userId);
