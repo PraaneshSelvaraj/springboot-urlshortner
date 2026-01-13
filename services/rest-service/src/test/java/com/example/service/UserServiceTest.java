@@ -248,7 +248,7 @@ class UserServiceTest {
 
     assertThatThrownBy(() -> userService.createUser(dto))
         .isInstanceOf(IllegalStateException.class)
-        .hasMessage("Resource already exists");
+        .hasMessage("User already exists");
 
     verify(notificationService, never()).sendUserCreatedNotification(anyString());
   }
@@ -268,7 +268,7 @@ class UserServiceTest {
 
     assertThatThrownBy(() -> userService.createUser(dto))
         .isInstanceOf(IllegalStateException.class)
-        .hasMessageContaining("Service is currently unavailable");
+        .hasMessage("Service unavailable");
   }
 
   // getUserById Tests (4 tests)
@@ -363,7 +363,7 @@ class UserServiceTest {
 
     assertThatThrownBy(() -> userService.getUserById(userId))
         .isInstanceOf(NoSuchElementException.class)
-        .hasMessage("Resource not found");
+        .hasMessage("User not found");
   }
 
   // getUsers Tests (15 tests)
@@ -683,7 +683,7 @@ class UserServiceTest {
 
     assertThatThrownBy(() -> userService.getUsers(0, 10, null, null))
         .isInstanceOf(IllegalStateException.class)
-        .hasMessageContaining("Service is currently unavailable");
+        .hasMessage("Service unavailable");
   }
 
   // deleteUserById Tests (4 tests)
@@ -745,6 +745,6 @@ class UserServiceTest {
 
     assertThatThrownBy(() -> userService.deleteUserById(userId))
         .isInstanceOf(NoSuchElementException.class)
-        .hasMessage("Resource not found");
+        .hasMessage("User not found");
   }
 }

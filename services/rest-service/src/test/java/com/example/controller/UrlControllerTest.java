@@ -14,20 +14,25 @@ import java.util.NoSuchElementException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.http.MediaType;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 
 @WebMvcTest(UrlController.class)
+@AutoConfigureMockMvc(addFilters = false)
 @DisplayName("UrlController Tests")
 class UrlControllerTest {
 
   @Autowired private MockMvc mockMvc;
 
   @MockBean private UrlService urlService;
+
+  @MockBean private com.example.util.JwtUtil jwtUtil;
 
   @Test
   @DisplayName("Should return health status successfully")
@@ -41,6 +46,7 @@ class UrlControllerTest {
   }
 
   @Test
+  @WithMockUser(roles = "USER")
   @DisplayName("Should create short URL successfully")
   void shouldCreateShortUrlSuccessfully() throws Exception {
     String longUrl = "https://www.example.com";
@@ -72,6 +78,7 @@ class UrlControllerTest {
   }
 
   @Test
+  @WithMockUser(roles = "ADMIN")
   @DisplayName("Should get paginated URLs successfully")
   void shouldGetPaginatedUrlsSuccessfully() throws Exception {
     Url url1 = new Url();
@@ -101,6 +108,7 @@ class UrlControllerTest {
   }
 
   @Test
+  @WithMockUser(roles = "ADMIN")
   @DisplayName("Should get URLs with default pagination parameters")
   void shouldGetUrlsWithDefaultPaginationParameters() throws Exception {
     Page<Url> emptyPage = new PageImpl<>(Arrays.asList());
@@ -116,6 +124,7 @@ class UrlControllerTest {
   }
 
   @Test
+  @WithMockUser(roles = "ADMIN")
   @DisplayName("Should throw exception when page number is negative")
   void shouldThrowExceptionWhenPageNumberIsNegative() throws Exception {
     when(urlService.getUrls(eq(-1), eq(10), isNull(), isNull()))
@@ -130,6 +139,7 @@ class UrlControllerTest {
   }
 
   @Test
+  @WithMockUser(roles = "ADMIN")
   @DisplayName("Should throw exception when page size is zero")
   void shouldThrowExceptionWhenPageSizeIsZero() throws Exception {
     when(urlService.getUrls(eq(0), eq(0), isNull(), isNull()))
@@ -144,6 +154,7 @@ class UrlControllerTest {
   }
 
   @Test
+  @WithMockUser(roles = "ADMIN")
   @DisplayName("Should throw exception when page size is negative")
   void shouldThrowExceptionWhenPageSizeIsNegative() throws Exception {
     when(urlService.getUrls(eq(0), eq(-5), isNull(), isNull()))
@@ -158,6 +169,7 @@ class UrlControllerTest {
   }
 
   @Test
+  @WithMockUser(roles = "USER")
   @DisplayName("Should get URL by short code successfully")
   void shouldGetUrlByShortCodeSuccessfully() throws Exception {
     String shortCode = "abc123";
@@ -182,6 +194,7 @@ class UrlControllerTest {
   }
 
   @Test
+  @WithMockUser(roles = "USER")
   @DisplayName("Should return 404 when URL not found by short code")
   void shouldReturn404WhenUrlNotFoundByShortCode() throws Exception {
     String shortCode = "notexists";
@@ -195,8 +208,9 @@ class UrlControllerTest {
   }
 
   @Test
+  @WithMockUser(roles = "USER")
   @DisplayName("Should delete URL successfully")
-  void shouldDeleteUrlSuccessfully() throws Exception {
+  void shouldDeleteUrlSuccessfully() throws Exception{
     String shortCode = "abc123";
 
     doNothing().when(urlService).deleteUrl(shortCode);
@@ -210,6 +224,7 @@ class UrlControllerTest {
   }
 
   @Test
+  @WithMockUser(roles = "USER")
   @DisplayName("Should return 404 when deleting non-existent URL")
   void shouldReturn404WhenDeletingNonExistentUrl() throws Exception {
     String shortCode = "notexists";
@@ -255,6 +270,7 @@ class UrlControllerTest {
   }
 
   @Test
+  @WithMockUser(roles = "ADMIN")
   @DisplayName("Should handle large page size")
   void shouldHandleLargePageSize() throws Exception {
     Page<Url> emptyPage = new PageImpl<>(Arrays.asList());
@@ -269,6 +285,7 @@ class UrlControllerTest {
   }
 
   @Test
+  @WithMockUser(roles = "ADMIN")
   @DisplayName("Should handle empty URL list")
   void shouldHandleEmptyUrlList() throws Exception {
     Page<Url> emptyPage = new PageImpl<>(Arrays.asList());
@@ -285,6 +302,7 @@ class UrlControllerTest {
   }
 
   @Test
+  @WithMockUser(roles = "USER")
   @DisplayName("Should create URL with complex long URL")
   void shouldCreateUrlWithComplexLongUrl() throws Exception {
     String longUrl = "https://www.example.com/path/to/resource?param1=value1&param2=value2";
@@ -330,6 +348,7 @@ class UrlControllerTest {
   }
 
   @Test
+  @WithMockUser(roles = "ADMIN")
   @DisplayName("Should handle pagination with specific page number")
   void shouldHandlePaginationWithSpecificPageNumber() throws Exception {
     Page<Url> urlPage = new PageImpl<>(Arrays.asList());

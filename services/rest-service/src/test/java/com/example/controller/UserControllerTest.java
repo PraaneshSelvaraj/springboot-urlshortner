@@ -17,12 +17,15 @@ import java.util.NoSuchElementException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 
 @WebMvcTest(UserController.class)
+@AutoConfigureMockMvc(addFilters = false)
 @DisplayName("UserController Tests")
 class UserControllerTest {
 
@@ -32,7 +35,7 @@ class UserControllerTest {
 
   @MockBean private UserService userService;
 
-  // POST /api/users Tests (5 tests)
+  @MockBean private com.example.util.JwtUtil jwtUtil;
 
   @Test
   @DisplayName("Should create user successfully")
@@ -161,9 +164,8 @@ class UserControllerTest {
     verify(userService).createUser(any(CreateUserDto.class));
   }
 
-  // GET /api/users Tests (7 tests)
-
   @Test
+  @WithMockUser(roles = "ADMIN")
   @DisplayName("Should get paginated users successfully")
   void shouldGetPaginatedUsersSuccessfully() throws Exception {
     UserDto user1 = new UserDto();
@@ -212,6 +214,7 @@ class UserControllerTest {
   }
 
   @Test
+  @WithMockUser(roles = "ADMIN")
   @DisplayName("Should get users with default pagination parameters")
   void shouldGetUsersWithDefaultPaginationParameters() throws Exception {
     PagedUsersDto emptyUsers = new PagedUsersDto();
@@ -235,6 +238,7 @@ class UserControllerTest {
   }
 
   @Test
+  @WithMockUser(roles = "ADMIN")
   @DisplayName("Should get users with sorting parameters")
   void shouldGetUsersWithSortingParameters() throws Exception {
     PagedUsersDto pagedUsers = new PagedUsersDto();
@@ -259,6 +263,7 @@ class UserControllerTest {
   }
 
   @Test
+  @WithMockUser(roles = "ADMIN")
   @DisplayName("Should return 400 when page number is negative")
   void shouldReturn400WhenPageNumberIsNegative() throws Exception {
     when(userService.getUsers(eq(-1), eq(10), isNull(), isNull()))
@@ -273,6 +278,7 @@ class UserControllerTest {
   }
 
   @Test
+  @WithMockUser(roles = "ADMIN")
   @DisplayName("Should return 400 when page size is zero")
   void shouldReturn400WhenPageSizeIsZero() throws Exception {
     when(userService.getUsers(eq(0), eq(0), isNull(), isNull()))
@@ -287,6 +293,7 @@ class UserControllerTest {
   }
 
   @Test
+  @WithMockUser(roles = "ADMIN")
   @DisplayName("Should return 400 when page size is negative")
   void shouldReturn400WhenPageSizeIsNegative() throws Exception {
     when(userService.getUsers(eq(0), eq(-5), isNull(), isNull()))
@@ -301,6 +308,7 @@ class UserControllerTest {
   }
 
   @Test
+  @WithMockUser(roles = "ADMIN")
   @DisplayName("Should handle empty users list")
   void shouldHandleEmptyUsersList() throws Exception {
     PagedUsersDto emptyUsers = new PagedUsersDto();
@@ -322,9 +330,8 @@ class UserControllerTest {
     verify(userService).getUsers(0, 10, null, null);
   }
 
-  // GET /api/users/{id} Tests (2 tests)
-
   @Test
+  @WithMockUser(roles = "USER")
   @DisplayName("Should get user by ID successfully")
   void shouldGetUserByIdSuccessfully() throws Exception {
     long userId = 123L;
@@ -351,6 +358,7 @@ class UserControllerTest {
   }
 
   @Test
+  @WithMockUser(roles = "USER")
   @DisplayName("Should return 404 when user not found")
   void shouldReturn404WhenUserNotFound() throws Exception {
     long userId = 999L;
@@ -366,18 +374,15 @@ class UserControllerTest {
     verify(userService).getUserById(userId);
   }
 
-  // DELETE /api/users/{id} Tests (1 test)
-
   @Test
+  @WithMockUser(roles = "USER")
   @DisplayName("Should delete user successfully")
   void shouldDeleteUserSuccessfully() throws Exception {
     long userId = 123L;
 
     when(userService.deleteUserById(userId)).thenReturn(true);
 
-    mockMvc
-        .perform(delete("/api/users/{id}", userId))
-        .andExpect(status().isNoContent());
+    mockMvc.perform(delete("/api/users/{id}", userId)).andExpect(status().isNoContent());
 
     verify(userService).deleteUserById(userId);
   }

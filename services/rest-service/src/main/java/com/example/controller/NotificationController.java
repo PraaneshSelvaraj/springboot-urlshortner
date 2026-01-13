@@ -4,6 +4,7 @@ import com.example.dto.PagedNotificationsDto;
 import com.example.service.NotificationService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -18,6 +19,7 @@ public class NotificationController {
   }
 
   @GetMapping("/api/notifications")
+  @PreAuthorize("hasRole('ADMIN')")
   public ResponseEntity<PagedNotificationsDto> getNotifications(
       @RequestParam(defaultValue = "0") int pageNo,
       @RequestParam(defaultValue = "10") int pageSize,

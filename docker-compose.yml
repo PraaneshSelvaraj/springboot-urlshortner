@@ -49,6 +49,7 @@ services:
       DB_PORT: 3306
       DB_USERNAME: ${DB_USERNAME}
       DB_PASSWORD: ${DB_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
       GRPC_NOTIFICATION_HOST: notification-service
       GRPC_NOTIFICATION_PORT: ${NOTIFICATION_GRPC_PORT}
       GRPC_USER_HOST: user-service

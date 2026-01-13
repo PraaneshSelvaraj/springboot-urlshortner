@@ -13,11 +13,14 @@ import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 
 @WebMvcTest(NotificationController.class)
+@AutoConfigureMockMvc(addFilters = false)
 @DisplayName("NotificationController Tests")
 class NotificationControllerTest {
 
@@ -25,7 +28,10 @@ class NotificationControllerTest {
 
   @MockBean private NotificationService notificationService;
 
+  @MockBean private com.example.util.JwtUtil jwtUtil;
+
   @Test
+  @WithMockUser(roles = "ADMIN")
   @DisplayName("Should get paginated notifications successfully")
   void shouldGetPaginatedNotificationsSuccessfully() throws Exception {
     NotificationDto notification1 = new NotificationDto();
@@ -71,6 +77,7 @@ class NotificationControllerTest {
   }
 
   @Test
+  @WithMockUser(roles = "ADMIN")
   @DisplayName("Should get notifications with default pagination parameters")
   void shouldGetNotificationsWithDefaultPaginationParameters() throws Exception {
     PagedNotificationsDto emptyNotifications = new PagedNotificationsDto();
@@ -94,6 +101,7 @@ class NotificationControllerTest {
   }
 
   @Test
+  @WithMockUser(roles = "ADMIN")
   @DisplayName("Should throw exception when page number is negative")
   void shouldThrowExceptionWhenPageNumberIsNegative() throws Exception {
     when(notificationService.getNotifications(eq(-1), eq(10), isNull(), isNull()))
@@ -110,6 +118,7 @@ class NotificationControllerTest {
   }
 
   @Test
+  @WithMockUser(roles = "ADMIN")
   @DisplayName("Should throw exception when page size is zero")
   void shouldThrowExceptionWhenPageSizeIsZero() throws Exception {
     when(notificationService.getNotifications(eq(0), eq(0), isNull(), isNull()))
@@ -126,6 +135,7 @@ class NotificationControllerTest {
   }
 
   @Test
+  @WithMockUser(roles = "ADMIN")
   @DisplayName("Should throw exception when page size is negative")
   void shouldThrowExceptionWhenPageSizeIsNegative() throws Exception {
     when(notificationService.getNotifications(eq(0), eq(-5), isNull(), isNull()))
@@ -142,6 +152,7 @@ class NotificationControllerTest {
   }
 
   @Test
+  @WithMockUser(roles = "ADMIN")
   @DisplayName("Should handle empty notifications list")
   void shouldHandleEmptyNotificationsList() throws Exception {
     PagedNotificationsDto emptyNotifications = new PagedNotificationsDto();
@@ -164,6 +175,7 @@ class NotificationControllerTest {
   }
 
   @Test
+  @WithMockUser(roles = "ADMIN")
   @DisplayName("Should handle large page size")
   void shouldHandleLargePageSize() throws Exception {
     PagedNotificationsDto notifications = new PagedNotificationsDto();
@@ -184,6 +196,7 @@ class NotificationControllerTest {
   }
 
   @Test
+  @WithMockUser(roles = "ADMIN")
   @DisplayName("Should handle pagination with specific page number")
   void shouldHandlePaginationWithSpecificPageNumber() throws Exception {
     PagedNotificationsDto notifications = new PagedNotificationsDto();
@@ -206,6 +219,7 @@ class NotificationControllerTest {
   }
 
   @Test
+  @WithMockUser(roles = "ADMIN")
   @DisplayName("Should return all notification types")
   void shouldReturnAllNotificationTypes() throws Exception {
     NotificationDto newUrlNotification = new NotificationDto();
@@ -246,6 +260,7 @@ class NotificationControllerTest {
   }
 
   @Test
+  @WithMockUser(roles = "ADMIN")
   @DisplayName("Should return all notification statuses")
   void shouldReturnAllNotificationStatuses() throws Exception {
     NotificationDto pendingNotification = new NotificationDto();

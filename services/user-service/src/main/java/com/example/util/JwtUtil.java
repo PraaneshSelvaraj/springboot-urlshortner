@@ -25,23 +25,27 @@ public class JwtUtil {
     this.secretKey = Keys.hmacShaKeyFor(secret.getBytes());
   }
 
-  public String createToken(String email, String role) {
+  public String createToken(Long userId, String email, String role) {
     return Jwts.builder()
         .subject(email)
         .id(UUID.randomUUID().toString())
+        .claim("userId", userId)
         .claim("role", role)
+        .claim("type", "auth")
         .issuedAt(new Date())
         .expiration(new Date(System.currentTimeMillis() + accessTokenExpiration))
         .signWith(secretKey)
         .compact();
   }
 
-  public RefreshTokenPair createRefreshToken(String email, String role) {
+  public RefreshTokenPair createRefreshToken(Long userId, String email, String role) {
     String jti = UUID.randomUUID().toString();
     String token =
         Jwts.builder()
             .subject(email)
             .id(jti)
+            .claim("userId", userId)
+            .claim("role", role)
             .claim("type", "refresh")
             .issuedAt(new Date())
             .expiration(new Date(System.currentTimeMillis() + refreshTokenExpiration))

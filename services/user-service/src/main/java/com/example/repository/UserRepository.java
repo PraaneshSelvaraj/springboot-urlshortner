@@ -19,5 +19,5 @@ public interface UserRepository extends JpaRepository<UserModel, Long> {
   @Modifying
   @Transactional
   @Query("UPDATE UserModel u SET u.refreshTokenJti = :refreshTokenJti WHERE u.id = :id")
-  int updateRefreshToken(@Param("id") Long id, @Param("refreshTokenJti") String refreshTokenJti);
+  int updateRefreshTokenJti(@Param("id") Long id, @Param("refreshTokenJti") String refreshTokenJti);
 }

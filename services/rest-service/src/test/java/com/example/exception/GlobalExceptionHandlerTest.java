@@ -10,17 +10,21 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 @WebMvcTest(UrlController.class)
+@AutoConfigureMockMvc(addFilters = false)
 @DisplayName("GlobalExceptionHandler Tests")
 class GlobalExceptionHandlerTest {
 
   @Autowired private MockMvc mockMvc;
 
   @MockBean private UrlService urlService;
+
+  @MockBean private com.example.util.JwtUtil jwtUtil;
 
   @Test
   @DisplayName("Should handle InvalidUrlException and return 400 BAD REQUEST")

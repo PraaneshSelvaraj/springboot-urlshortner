@@ -136,12 +136,12 @@ public class GrpcUserService extends UserServiceGrpc.UserServiceImplBase {
               .findByEmail(email)
               .orElseThrow(
                   () ->
-                      Status.PERMISSION_DENIED
+                      Status.UNAUTHENTICATED
                           .withDescription("Invalid Credentials")
                           .asRuntimeException());
 
       if (!passwordEncoder.matches(password, user.getPassword())) {
-        throw Status.PERMISSION_DENIED.withDescription("Invalid Credentials").asRuntimeException();
+        throw Status.UNAUTHENTICATED.withDescription("Invalid Credentials").asRuntimeException();
       }
 
       if (user.isDeleted()) {
@@ -159,9 +159,9 @@ public class GrpcUserService extends UserServiceGrpc.UserServiceImplBase {
             .asRuntimeException();
       }
 
-      String accessToken = jwtUtil.createToken(user.getEmail(), user.getRole());
+      String accessToken = jwtUtil.createToken(user.getId(), user.getEmail(), user.getRole());
       JwtUtil.RefreshTokenPair refreshToken =
-          jwtUtil.createRefreshToken(user.getEmail(), user.getRole());
+          jwtUtil.createRefreshToken(user.getId(), user.getEmail(), user.getRole());
 
       user.setRefreshTokenJti(refreshToken.jti());
       userRepo.save(user);
@@ -253,11 +253,14 @@ public class GrpcUserService extends UserServiceGrpc.UserServiceImplBase {
               .asRuntimeException();
         }
 
-        String accessToken = jwtUtil.createToken(existingUser.getEmail(), existingUser.getRole());
+        String accessToken =
+            jwtUtil.createToken(
+                existingUser.getId(), existingUser.getEmail(), existingUser.getRole());
         JwtUtil.RefreshTokenPair refreshToken =
-            jwtUtil.createRefreshToken(existingUser.getEmail(), existingUser.getRole());
+            jwtUtil.createRefreshToken(
+                existingUser.getId(), existingUser.getEmail(), existingUser.getRole());
 
-        int rowsAffected = userRepo.updateRefreshToken(existingUser.getId(), refreshToken.jti());
+        int rowsAffected = userRepo.updateRefreshTokenJti(existingUser.getId(), refreshToken.jti());
         if (rowsAffected <= 0) {
           throw Status.UNKNOWN.withDescription("Unable to login").asRuntimeException();
         }
@@ -314,11 +317,13 @@ public class GrpcUserService extends UserServiceGrpc.UserServiceImplBase {
           UserModel savedUser = userRepo.save(newUser);
           userRepo.flush();
 
-          String accessToken = jwtUtil.createToken(savedUser.getEmail(), savedUser.getRole());
+          String accessToken =
+              jwtUtil.createToken(savedUser.getId(), savedUser.getEmail(), savedUser.getRole());
           JwtUtil.RefreshTokenPair refreshToken =
-              jwtUtil.createRefreshToken(savedUser.getEmail(), savedUser.getRole());
+              jwtUtil.createRefreshToken(
+                  savedUser.getId(), savedUser.getEmail(), savedUser.getRole());
 
-          userRepo.updateRefreshToken(savedUser.getId(), refreshToken.token());
+          userRepo.updateRefreshTokenJti(savedUser.getId(), refreshToken.jti());
           UserModel updatedUser = userRepo.findById(savedUser.getId()).orElseThrow();
 
           Instant createdAtInstant = updatedUser.getCreatedAt().atZone(ZoneOffset.UTC).toInstant();
@@ -630,9 +635,9 @@ public class GrpcUserService extends UserServiceGrpc.UserServiceImplBase {
         throw Status.UNAUTHENTICATED.withDescription("Invalid Refresh Token").asRuntimeException();
       }
 
-      String newAccessToken = jwtUtil.createToken(user.getEmail(), user.getRole());
+      String newAccessToken = jwtUtil.createToken(user.getId(), user.getEmail(), user.getRole());
       JwtUtil.RefreshTokenPair newRefreshToken =
-          jwtUtil.createRefreshToken(user.getEmail(), user.getRole());
+          jwtUtil.createRefreshToken(user.getId(), user.getEmail(), user.getRole());
 
       user.setRefreshTokenJti(newRefreshToken.jti());
       userRepo.save(user);

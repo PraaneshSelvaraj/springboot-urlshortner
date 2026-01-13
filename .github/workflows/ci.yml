@@ -54,3 +54,8 @@ jobs:
         run: |
           cd services/notification-service
           mvn test
+
+      - name: Run tests for user-service
+        run: |
+          cd services/user-service
+          mvn test

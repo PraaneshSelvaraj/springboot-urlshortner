@@ -6,6 +6,7 @@ import com.example.dto.UserDto;
 import com.example.service.UserService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -24,6 +25,7 @@ public class UserController {
   }
 
   @GetMapping("/api/users")
+  @PreAuthorize("hasRole('ADMIN')")
   public ResponseEntity<PagedUsersDto> getUsers(
       @RequestParam(defaultValue = "0") int pageNo,
       @RequestParam(defaultValue = "10") int pageSize,
@@ -34,12 +36,14 @@ public class UserController {
   }
 
   @GetMapping("/api/users/{id}")
+  @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
   public ResponseEntity<UserDto> getUserById(@PathVariable long id) {
     UserDto response = userService.getUserById(id);
     return new ResponseEntity<>(response, HttpStatus.OK);
   }
 
   @DeleteMapping("/api/users/{id}")
+  @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
   public ResponseEntity<Void> deleteUserById(@PathVariable long id) {
     userService.deleteUserById(id);
     return ResponseEntity.noContent().build();
