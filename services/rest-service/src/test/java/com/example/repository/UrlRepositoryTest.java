@@ -12,6 +12,9 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.test.context.TestPropertySource;
 
 @DataJpaTest
@@ -37,6 +40,7 @@ class UrlRepositoryTest {
     testUrl.setLongUrl("https://www.example.com/very-long-url");
     testUrl.setClicks(0);
     testUrl.setDeleted(false);
+    testUrl.setCreatedBy(1L);
     testUrl.setCreatedAt(LocalDateTime.now());
     testUrl.setUpdatedAt(LocalDateTime.now());
     testUrl.setExpiresAt(LocalDateTime.now().plusDays(30));
@@ -240,5 +244,135 @@ class UrlRepositoryTest {
     long count = urlRepository.count();
 
     assertThat(count).isEqualTo(2);
+  }
+
+  @Test
+  @DisplayName("Should save URL with createdBy field")
+  void shouldSaveUrlWithCreatedByField() {
+    testUrl.setCreatedBy(123L);
+
+    Url savedUrl = urlRepository.save(testUrl);
+    entityManager.flush();
+
+    assertThat(savedUrl).isNotNull();
+    assertThat(savedUrl.getCreatedBy()).isEqualTo(123L);
+  }
+
+  @Test
+  @DisplayName("Should find URLs by createdBy user ID")
+  void shouldFindUrlsByCreatedBy() {
+    Long userId = 100L;
+
+    Url url1 = new Url();
+    url1.setShortCode("user100-1");
+    url1.setLongUrl("https://www.example1.com");
+    url1.setClicks(0);
+    url1.setDeleted(false);
+    url1.setCreatedBy(userId);
+    url1.setCreatedAt(LocalDateTime.now());
+    url1.setUpdatedAt(LocalDateTime.now());
+
+    Url url2 = new Url();
+    url2.setShortCode("user100-2");
+    url2.setLongUrl("https://www.example2.com");
+    url2.setClicks(0);
+    url2.setDeleted(false);
+    url2.setCreatedBy(userId);
+    url2.setCreatedAt(LocalDateTime.now());
+    url2.setUpdatedAt(LocalDateTime.now());
+
+    Url url3 = new Url();
+    url3.setShortCode("user200-1");
+    url3.setLongUrl("https://www.example3.com");
+    url3.setClicks(0);
+    url3.setDeleted(false);
+    url3.setCreatedBy(200L);
+    url3.setCreatedAt(LocalDateTime.now());
+    url3.setUpdatedAt(LocalDateTime.now());
+
+    entityManager.persist(url1);
+    entityManager.persist(url2);
+    entityManager.persist(url3);
+    entityManager.flush();
+
+    Pageable pageable = PageRequest.of(0, 10);
+    Page<Url> userUrls = urlRepository.findByCreatedBy(userId, pageable);
+
+    assertThat(userUrls).isNotNull();
+    assertThat(userUrls.getContent()).hasSize(2);
+    assertThat(userUrls.getContent())
+        .extracting(Url::getCreatedBy)
+        .containsOnly(userId);
+    assertThat(userUrls.getContent())
+        .extracting(Url::getShortCode)
+        .containsExactlyInAnyOrder("user100-1", "user100-2");
+  }
+
+  @Test
+  @DisplayName("Should return empty page when no URLs exist for user")
+  void shouldReturnEmptyPageWhenNoUrlsExistForUser() {
+    Long userId = 999L;
+
+    Url url1 = new Url();
+    url1.setShortCode("other-user");
+    url1.setLongUrl("https://www.example1.com");
+    url1.setClicks(0);
+    url1.setDeleted(false);
+    url1.setCreatedBy(100L);
+    url1.setCreatedAt(LocalDateTime.now());
+    url1.setUpdatedAt(LocalDateTime.now());
+
+    entityManager.persistAndFlush(url1);
+
+    Pageable pageable = PageRequest.of(0, 10);
+    Page<Url> userUrls = urlRepository.findByCreatedBy(userId, pageable);
+
+    assertThat(userUrls).isNotNull();
+    assertThat(userUrls.getContent()).isEmpty();
+    assertThat(userUrls.getTotalElements()).isEqualTo(0);
+  }
+
+  @Test
+  @DisplayName("Should paginate URLs by createdBy correctly")
+  void shouldPaginateUrlsByCreatedByCorrectly() {
+    Long userId = 100L;
+
+    for (int i = 1; i <= 5; i++) {
+      Url url = new Url();
+      url.setShortCode("url-" + i);
+      url.setLongUrl("https://www.example" + i + ".com");
+      url.setClicks(0);
+      url.setDeleted(false);
+      url.setCreatedBy(userId);
+      url.setCreatedAt(LocalDateTime.now());
+      url.setUpdatedAt(LocalDateTime.now());
+      entityManager.persist(url);
+    }
+    entityManager.flush();
+
+    Pageable firstPage = PageRequest.of(0, 2);
+    Page<Url> firstPageResult = urlRepository.findByCreatedBy(userId, firstPage);
+
+    assertThat(firstPageResult.getContent()).hasSize(2);
+    assertThat(firstPageResult.getTotalElements()).isEqualTo(5);
+    assertThat(firstPageResult.getTotalPages()).isEqualTo(3);
+
+    Pageable secondPage = PageRequest.of(1, 2);
+    Page<Url> secondPageResult = urlRepository.findByCreatedBy(userId, secondPage);
+
+    assertThat(secondPageResult.getContent()).hasSize(2);
+    assertThat(secondPageResult.getTotalElements()).isEqualTo(5);
+  }
+
+  @Test
+  @DisplayName("Should allow null createdBy field")
+  void shouldAllowNullCreatedByField() {
+    testUrl.setCreatedBy(null);
+
+    Url savedUrl = urlRepository.save(testUrl);
+    entityManager.flush();
+
+    assertThat(savedUrl).isNotNull();
+    assertThat(savedUrl.getCreatedBy()).isNull();
   }
 }

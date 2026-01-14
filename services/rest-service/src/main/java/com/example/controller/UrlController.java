@@ -43,7 +43,7 @@ public class UrlController {
   }
 
   @GetMapping("/api/urls")
-  @PreAuthorize("hasRole('ADMIN')")
+  @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
   public ResponseEntity<Page<Url>> getUrls(
       @RequestParam(defaultValue = "0") int pageNo,
       @RequestParam(defaultValue = "10") int pageSize,

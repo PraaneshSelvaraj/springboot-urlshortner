@@ -40,4 +40,7 @@ public class Url {
 
   @Column(nullable = true)
   private LocalDateTime expiresAt;
+
+  @Column(name = "created_by")
+  private Long createdBy;
 }
