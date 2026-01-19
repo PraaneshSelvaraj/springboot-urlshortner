@@ -1,5 +1,6 @@
 package com.example.util;
 
+import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import java.security.KeyFactory;
 import java.security.PrivateKey;
@@ -97,5 +98,24 @@ public class JwtUtil {
     } catch (Exception e) {
       return false;
     }
+  }
+
+  public Long extractUserId(String token) {
+    Claims claims = extractAllClaims(token);
+    return claims.get("userId", Long.class);
+  }
+
+  public String extractRole(String token) {
+    Claims claims = extractAllClaims(token);
+    return claims.get("role", String.class);
+  }
+
+  public String extractTokenType(String token) {
+    Claims claims = extractAllClaims(token);
+    return claims.get("type", String.class);
+  }
+
+  private Claims extractAllClaims(String token) {
+    return Jwts.parser().verifyWith(publicKey).build().parseSignedClaims(token).getPayload();
   }
 }

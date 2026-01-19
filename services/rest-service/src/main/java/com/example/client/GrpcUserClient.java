@@ -20,9 +20,19 @@ public class GrpcUserClient {
   @Value("${grpc.user.port}")
   private int port;
 
+  private GrpcAuthClientInterceptor authInterceptor;
+
+  public GrpcUserClient(GrpcAuthClientInterceptor authInterceptor) {
+    this.authInterceptor = authInterceptor;
+  }
+
   @PostConstruct
   public void init() {
-    this.channel = ManagedChannelBuilder.forAddress(host, port).usePlaintext().build();
+    this.channel =
+        ManagedChannelBuilder.forAddress(host, port)
+            .usePlaintext()
+            .intercept(authInterceptor)
+            .build();
     this.stub = UserServiceGrpc.newBlockingStub(channel);
     System.out.println("User gRPC Client connected to " + host + ":" + port);
   }

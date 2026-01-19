@@ -15,6 +15,7 @@ import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
 @DataJpaTest
 @DisplayName("NotificationTypeRepository Tests")
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.ANY)
+@org.springframework.test.context.TestPropertySource(locations = "classpath:application-test.properties")
 class NotificationTypeRepositoryTest {
 
   private final TestEntityManager entityManager;

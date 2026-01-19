@@ -20,9 +20,19 @@ public class GrpcNotificationClient {
   @Value("${grpc.notification.port}")
   private int port;
 
+  private GrpcAuthClientInterceptor authInterceptor;
+
+  public GrpcNotificationClient(GrpcAuthClientInterceptor authInterceptor) {
+    this.authInterceptor = authInterceptor;
+  }
+
   @PostConstruct
   public void init() {
-    this.channel = ManagedChannelBuilder.forAddress(host, port).usePlaintext().build();
+    this.channel =
+        ManagedChannelBuilder.forAddress(host, port)
+            .usePlaintext()
+            .intercept(authInterceptor)
+            .build();
     this.stub = NotificationServiceGrpc.newBlockingStub(channel);
     System.out.println("Notification gRPC Client connected to " + host + ":" + port);
   }
