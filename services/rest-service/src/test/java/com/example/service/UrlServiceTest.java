@@ -11,21 +11,25 @@ import com.example.exception.ThresholdReachedException;
 import com.example.exception.UrlExpiredException;
 import com.example.model.Url;
 import com.example.repository.UrlRepository;
+import com.example.util.UserContext;
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.NoSuchElementException;
 import java.util.Optional;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.MockedStatic;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.test.util.ReflectionTestUtils;
 
 @ExtendWith(MockitoExtension.class)
@@ -38,12 +42,25 @@ class UrlServiceTest {
 
   @InjectMocks private UrlService urlService;
 
+  private MockedStatic<UserContext> userContextMock;
+
   @BeforeEach
   void setUp() {
     ReflectionTestUtils.setField(urlService, "bannedHosts", new HashSet<>(Arrays.asList()));
     ReflectionTestUtils.setField(urlService, "urlExpirationHours", 24);
     ReflectionTestUtils.setField(urlService, "notificationThreshold", 100);
     ReflectionTestUtils.setField(urlService, "baseUrl", "http://short.url");
+
+    userContextMock = mockStatic(UserContext.class);
+    userContextMock.when(UserContext::getCurrentUserId).thenReturn(1L);
+    userContextMock.when(UserContext::getCurrentUserRole).thenReturn("admin");
+  }
+
+  @AfterEach
+  void tearDown() {
+    if (userContextMock != null) {
+      userContextMock.close();
+    }
   }
 
   @Test
@@ -507,5 +524,241 @@ class UrlServiceTest {
 
     assertThat(result).isNotNull();
     verify(urlRepository).findAll(any(Pageable.class));
+  }
+
+  @Test
+  @DisplayName("Should set createdBy field when adding URL")
+  void shouldSetCreatedByFieldWhenAddingUrl() {
+    String longUrl = "https://www.example.com";
+    long userId = 123L;
+
+    userContextMock.when(UserContext::getCurrentUserId).thenReturn(userId);
+
+    Url savedUrl = new Url();
+    savedUrl.setId(1L);
+    savedUrl.setShortCode("abc123");
+    savedUrl.setLongUrl(longUrl);
+    savedUrl.setClicks(0);
+    savedUrl.setCreatedBy(userId);
+    savedUrl.setCreatedAt(LocalDateTime.now());
+    savedUrl.setUpdatedAt(LocalDateTime.now());
+
+    when(urlRepository.findByShortCode(anyString())).thenReturn(Optional.empty());
+    when(urlRepository.save(any(Url.class))).thenReturn(savedUrl);
+
+    UrlDto result = urlService.addUrl(longUrl);
+
+    assertThat(result).isNotNull();
+    verify(urlRepository)
+        .save(
+            argThat(
+                url ->
+                    url.getCreatedBy() != null
+                        && url.getCreatedBy().equals(userId)
+                        && url.getLongUrl().equals(longUrl)));
+  }
+
+  @Test
+  @DisplayName("Should return all URLs for admin users")
+  void shouldReturnAllUrlsForAdminUsers() {
+    userContextMock.when(UserContext::getCurrentUserRole).thenReturn("admin");
+
+    Url url1 = new Url();
+    url1.setId(1L);
+    url1.setCreatedBy(1L);
+
+    Url url2 = new Url();
+    url2.setId(2L);
+    url2.setCreatedBy(2L);
+
+    Page<Url> urlPage = new PageImpl<>(Arrays.asList(url1, url2));
+
+    when(urlRepository.findAll(any(Pageable.class))).thenReturn(urlPage);
+
+    Page<Url> result = urlService.getUrls(0, 10, null, null);
+
+    assertThat(result).isNotNull();
+    assertThat(result.getContent()).hasSize(2);
+    verify(urlRepository).findAll(any(Pageable.class));
+    verify(urlRepository, never()).findByCreatedBy(anyLong(), any(Pageable.class));
+  }
+
+  @Test
+  @DisplayName("Should return only user's URLs for regular users")
+  void shouldReturnOnlyUsersUrlsForRegularUsers() {
+    long userId = 123L;
+    userContextMock.when(UserContext::getCurrentUserId).thenReturn(userId);
+    userContextMock.when(UserContext::getCurrentUserRole).thenReturn("user");
+
+    Url url1 = new Url();
+    url1.setId(1L);
+    url1.setCreatedBy(userId);
+
+    Page<Url> urlPage = new PageImpl<>(Arrays.asList(url1));
+
+    when(urlRepository.findByCreatedBy(eq(userId), any(Pageable.class))).thenReturn(urlPage);
+
+    Page<Url> result = urlService.getUrls(0, 10, null, null);
+
+    assertThat(result).isNotNull();
+    assertThat(result.getContent()).hasSize(1);
+    assertThat(result.getContent().get(0).getCreatedBy()).isEqualTo(userId);
+    verify(urlRepository).findByCreatedBy(eq(userId), any(Pageable.class));
+    verify(urlRepository, never()).findAll(any(Pageable.class));
+  }
+
+  @Test
+  @DisplayName("Should allow admin to view any URL")
+  void shouldAllowAdminToViewAnyUrl() {
+    String shortCode = "abc123";
+    long urlOwnerId = 999L;
+    long adminId = 1L;
+
+    userContextMock.when(UserContext::getCurrentUserId).thenReturn(adminId);
+    userContextMock.when(UserContext::getCurrentUserRole).thenReturn("admin");
+
+    Url url = new Url();
+    url.setId(1L);
+    url.setShortCode(shortCode);
+    url.setLongUrl("https://example.com");
+    url.setClicks(5);
+    url.setCreatedBy(urlOwnerId);
+    url.setCreatedAt(LocalDateTime.now());
+    url.setUpdatedAt(LocalDateTime.now());
+
+    when(urlRepository.findByShortCode(shortCode)).thenReturn(Optional.of(url));
+
+    UrlDto result = urlService.getUrlByShortCode(shortCode);
+
+    assertThat(result).isNotNull();
+    assertThat(result.getShortCode()).isEqualTo(shortCode);
+    verify(urlRepository).findByShortCode(shortCode);
+  }
+
+  @Test
+  @DisplayName("Should allow user to view their own URL")
+  void shouldAllowUserToViewTheirOwnUrl() {
+    String shortCode = "abc123";
+    long userId = 123L;
+
+    userContextMock.when(UserContext::getCurrentUserId).thenReturn(userId);
+    userContextMock.when(UserContext::getCurrentUserRole).thenReturn("user");
+
+    Url url = new Url();
+    url.setId(1L);
+    url.setShortCode(shortCode);
+    url.setLongUrl("https://example.com");
+    url.setClicks(5);
+    url.setCreatedBy(userId);
+    url.setCreatedAt(LocalDateTime.now());
+    url.setUpdatedAt(LocalDateTime.now());
+
+    when(urlRepository.findByShortCode(shortCode)).thenReturn(Optional.of(url));
+
+    UrlDto result = urlService.getUrlByShortCode(shortCode);
+
+    assertThat(result).isNotNull();
+    assertThat(result.getShortCode()).isEqualTo(shortCode);
+    verify(urlRepository).findByShortCode(shortCode);
+  }
+
+  @Test
+  @DisplayName("Should deny user access to another user's URL")
+  void shouldDenyUserAccessToAnotherUsersUrl() {
+    String shortCode = "abc123";
+    long userId = 123L;
+    long otherUserId = 999L;
+
+    userContextMock.when(UserContext::getCurrentUserId).thenReturn(userId);
+    userContextMock.when(UserContext::getCurrentUserRole).thenReturn("user");
+
+    Url url = new Url();
+    url.setId(1L);
+    url.setShortCode(shortCode);
+    url.setLongUrl("https://example.com");
+    url.setCreatedBy(otherUserId);
+    url.setCreatedAt(LocalDateTime.now());
+    url.setUpdatedAt(LocalDateTime.now());
+
+    when(urlRepository.findByShortCode(shortCode)).thenReturn(Optional.of(url));
+
+    assertThatThrownBy(() -> urlService.getUrlByShortCode(shortCode))
+        .isInstanceOf(AccessDeniedException.class)
+        .hasMessageContaining("You do not have permission to view this URL");
+
+    verify(urlRepository).findByShortCode(shortCode);
+  }
+
+  @Test
+  @DisplayName("Should allow admin to delete any URL")
+  void shouldAllowAdminToDeleteAnyUrl() {
+    String shortCode = "abc123";
+    long urlOwnerId = 999L;
+    long adminId = 1L;
+
+    userContextMock.when(UserContext::getCurrentUserId).thenReturn(adminId);
+    userContextMock.when(UserContext::getCurrentUserRole).thenReturn("admin");
+
+    Url url = new Url();
+    url.setId(1L);
+    url.setShortCode(shortCode);
+    url.setLongUrl("https://example.com");
+    url.setCreatedBy(urlOwnerId);
+
+    when(urlRepository.findByShortCode(shortCode)).thenReturn(Optional.of(url));
+
+    urlService.deleteUrl(shortCode);
+
+    verify(urlRepository).findByShortCode(shortCode);
+    verify(urlRepository).delete(url);
+  }
+
+  @Test
+  @DisplayName("Should allow user to delete their own URL")
+  void shouldAllowUserToDeleteTheirOwnUrl() {
+    String shortCode = "abc123";
+    long userId = 123L;
+
+    userContextMock.when(UserContext::getCurrentUserId).thenReturn(userId);
+    userContextMock.when(UserContext::getCurrentUserRole).thenReturn("user");
+
+    Url url = new Url();
+    url.setId(1L);
+    url.setShortCode(shortCode);
+    url.setLongUrl("https://example.com");
+    url.setCreatedBy(userId);
+
+    when(urlRepository.findByShortCode(shortCode)).thenReturn(Optional.of(url));
+
+    urlService.deleteUrl(shortCode);
+
+    verify(urlRepository).findByShortCode(shortCode);
+    verify(urlRepository).delete(url);
+  }
+
+  @Test
+  @DisplayName("Should deny user from deleting another user's URL")
+  void shouldDenyUserFromDeletingAnotherUsersUrl() {
+    String shortCode = "abc123";
+    long userId = 123L;
+    long otherUserId = 999L;
+
+    userContextMock.when(UserContext::getCurrentUserId).thenReturn(userId);
+    userContextMock.when(UserContext::getCurrentUserRole).thenReturn("user");
+
+    Url url = new Url();
+    url.setId(1L);
+    url.setShortCode(shortCode);
+    url.setLongUrl("https://example.com");
+    url.setCreatedBy(otherUserId);
+
+    when(urlRepository.findByShortCode(shortCode)).thenReturn(Optional.of(url));
+
+    assertThatThrownBy(() -> urlService.deleteUrl(shortCode))
+        .isInstanceOf(AccessDeniedException.class)
+        .hasMessageContaining("You do not have permission to view this URL");
+
+    verify(urlRepository).findByShortCode(shortCode);
+    verify(urlRepository, never()).delete(any(Url.class));
   }
 }

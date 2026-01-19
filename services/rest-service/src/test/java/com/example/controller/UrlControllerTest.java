@@ -14,20 +14,25 @@ import java.util.NoSuchElementException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.http.MediaType;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 
 @WebMvcTest(UrlController.class)
+@AutoConfigureMockMvc(addFilters = false)
 @DisplayName("UrlController Tests")
 class UrlControllerTest {
 
   @Autowired private MockMvc mockMvc;
 
   @MockBean private UrlService urlService;
+
+  @MockBean private com.example.util.JwtUtil jwtUtil;
 
   @Test
   @DisplayName("Should return health status successfully")
@@ -41,6 +46,7 @@ class UrlControllerTest {
   }
 
   @Test
+  @WithMockUser(roles = "USER")
   @DisplayName("Should create short URL successfully")
   void shouldCreateShortUrlSuccessfully() throws Exception {
     String longUrl = "https://www.example.com";
@@ -72,6 +78,7 @@ class UrlControllerTest {
   }
 
   @Test
+  @WithMockUser(roles = "ADMIN")
   @DisplayName("Should get paginated URLs successfully")
   void shouldGetPaginatedUrlsSuccessfully() throws Exception {
     Url url1 = new Url();
@@ -101,6 +108,7 @@ class UrlControllerTest {
   }
 
   @Test
+  @WithMockUser(roles = "ADMIN")
   @DisplayName("Should get URLs with default pagination parameters")
   void shouldGetUrlsWithDefaultPaginationParameters() throws Exception {
     Page<Url> emptyPage = new PageImpl<>(Arrays.asList());
@@ -116,6 +124,7 @@ class UrlControllerTest {
   }
 
   @Test
+  @WithMockUser(roles = "ADMIN")
   @DisplayName("Should throw exception when page number is negative")
   void shouldThrowExceptionWhenPageNumberIsNegative() throws Exception {
     when(urlService.getUrls(eq(-1), eq(10), isNull(), isNull()))
@@ -123,15 +132,14 @@ class UrlControllerTest {
 
     mockMvc
         .perform(get("/api/urls").param("pageNo", "-1").param("pageSize", "10"))
-        .andExpect(status().isInternalServerError())
-        .andExpect(
-            jsonPath("$.message")
-                .value("An unexpected error occurred: Page number cannot be negative"));
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.message").value("Page number cannot be negative"));
 
     verify(urlService).getUrls(eq(-1), eq(10), isNull(), isNull());
   }
 
   @Test
+  @WithMockUser(roles = "ADMIN")
   @DisplayName("Should throw exception when page size is zero")
   void shouldThrowExceptionWhenPageSizeIsZero() throws Exception {
     when(urlService.getUrls(eq(0), eq(0), isNull(), isNull()))
@@ -139,15 +147,14 @@ class UrlControllerTest {
 
     mockMvc
         .perform(get("/api/urls").param("pageNo", "0").param("pageSize", "0"))
-        .andExpect(status().isInternalServerError())
-        .andExpect(
-            jsonPath("$.message")
-                .value("An unexpected error occurred: Page size must be greater than zero."));
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.message").value("Page size must be greater than zero."));
 
     verify(urlService).getUrls(eq(0), eq(0), isNull(), isNull());
   }
 
   @Test
+  @WithMockUser(roles = "ADMIN")
   @DisplayName("Should throw exception when page size is negative")
   void shouldThrowExceptionWhenPageSizeIsNegative() throws Exception {
     when(urlService.getUrls(eq(0), eq(-5), isNull(), isNull()))
@@ -155,15 +162,14 @@ class UrlControllerTest {
 
     mockMvc
         .perform(get("/api/urls").param("pageNo", "0").param("pageSize", "-5"))
-        .andExpect(status().isInternalServerError())
-        .andExpect(
-            jsonPath("$.message")
-                .value("An unexpected error occurred: Page size must be greater than zero."));
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.message").value("Page size must be greater than zero."));
 
     verify(urlService).getUrls(eq(0), eq(-5), isNull(), isNull());
   }
 
   @Test
+  @WithMockUser(roles = "USER")
   @DisplayName("Should get URL by short code successfully")
   void shouldGetUrlByShortCodeSuccessfully() throws Exception {
     String shortCode = "abc123";
@@ -188,6 +194,7 @@ class UrlControllerTest {
   }
 
   @Test
+  @WithMockUser(roles = "USER")
   @DisplayName("Should return 404 when URL not found by short code")
   void shouldReturn404WhenUrlNotFoundByShortCode() throws Exception {
     String shortCode = "notexists";
@@ -201,8 +208,9 @@ class UrlControllerTest {
   }
 
   @Test
+  @WithMockUser(roles = "USER")
   @DisplayName("Should delete URL successfully")
-  void shouldDeleteUrlSuccessfully() throws Exception {
+  void shouldDeleteUrlSuccessfully() throws Exception{
     String shortCode = "abc123";
 
     doNothing().when(urlService).deleteUrl(shortCode);
@@ -216,6 +224,7 @@ class UrlControllerTest {
   }
 
   @Test
+  @WithMockUser(roles = "USER")
   @DisplayName("Should return 404 when deleting non-existent URL")
   void shouldReturn404WhenDeletingNonExistentUrl() throws Exception {
     String shortCode = "notexists";
@@ -261,6 +270,7 @@ class UrlControllerTest {
   }
 
   @Test
+  @WithMockUser(roles = "ADMIN")
   @DisplayName("Should handle large page size")
   void shouldHandleLargePageSize() throws Exception {
     Page<Url> emptyPage = new PageImpl<>(Arrays.asList());
@@ -275,6 +285,7 @@ class UrlControllerTest {
   }
 
   @Test
+  @WithMockUser(roles = "ADMIN")
   @DisplayName("Should handle empty URL list")
   void shouldHandleEmptyUrlList() throws Exception {
     Page<Url> emptyPage = new PageImpl<>(Arrays.asList());
@@ -291,6 +302,7 @@ class UrlControllerTest {
   }
 
   @Test
+  @WithMockUser(roles = "USER")
   @DisplayName("Should create URL with complex long URL")
   void shouldCreateUrlWithComplexLongUrl() throws Exception {
     String longUrl = "https://www.example.com/path/to/resource?param1=value1&param2=value2";
@@ -336,6 +348,7 @@ class UrlControllerTest {
   }
 
   @Test
+  @WithMockUser(roles = "ADMIN")
   @DisplayName("Should handle pagination with specific page number")
   void shouldHandlePaginationWithSpecificPageNumber() throws Exception {
     Page<Url> urlPage = new PageImpl<>(Arrays.asList());
@@ -347,5 +360,208 @@ class UrlControllerTest {
         .andExpect(status().isOk());
 
     verify(urlService).getUrls(5, 20, null, null);
+  }
+
+  @Test
+  @WithMockUser(roles = "USER")
+  @DisplayName("Should allow USER role to create URL")
+  void shouldAllowUserRoleToCreateUrl() throws Exception {
+    String longUrl = "https://www.example.com";
+
+    UrlDto urlDto = new UrlDto();
+    urlDto.setId(1L);
+    urlDto.setLongUrl(longUrl);
+    urlDto.setShortCode("abc123");
+    urlDto.setShortUrl("http://short.url/abc123");
+    urlDto.setClicks(0);
+
+    when(urlService.addUrl(longUrl)).thenReturn(urlDto);
+
+    String requestBody = "{\"url\":\"" + longUrl + "\"}";
+
+    mockMvc
+        .perform(post("/api/urls").contentType(MediaType.APPLICATION_JSON).content(requestBody))
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$.shortCode").value("abc123"));
+
+    verify(urlService).addUrl(longUrl);
+  }
+
+  @Test
+  @WithMockUser(roles = "ADMIN")
+  @DisplayName("Should allow ADMIN role to create URL")
+  void shouldAllowAdminRoleToCreateUrl() throws Exception {
+    String longUrl = "https://www.example.com";
+
+    UrlDto urlDto = new UrlDto();
+    urlDto.setId(1L);
+    urlDto.setLongUrl(longUrl);
+    urlDto.setShortCode("admin123");
+    urlDto.setShortUrl("http://short.url/admin123");
+    urlDto.setClicks(0);
+
+    when(urlService.addUrl(longUrl)).thenReturn(urlDto);
+
+    String requestBody = "{\"url\":\"" + longUrl + "\"}";
+
+    mockMvc
+        .perform(post("/api/urls").contentType(MediaType.APPLICATION_JSON).content(requestBody))
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$.shortCode").value("admin123"));
+
+    verify(urlService).addUrl(longUrl);
+  }
+
+  @Test
+  @WithMockUser(roles = "USER")
+  @DisplayName("Should allow USER role to get URLs")
+  void shouldAllowUserRoleToGetUrls() throws Exception {
+    Page<Url> emptyPage = new PageImpl<>(Arrays.asList());
+
+    when(urlService.getUrls(0, 10, null, null)).thenReturn(emptyPage);
+
+    mockMvc
+        .perform(get("/api/urls"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.content").isArray());
+
+    verify(urlService).getUrls(0, 10, null, null);
+  }
+
+  @Test
+  @WithMockUser(roles = "USER")
+  @DisplayName("Should allow USER role to get URL by short code")
+  void shouldAllowUserRoleToGetUrlByShortCode() throws Exception {
+    String shortCode = "abc123";
+
+    UrlDto urlDto = new UrlDto();
+    urlDto.setId(1L);
+    urlDto.setShortCode(shortCode);
+    urlDto.setLongUrl("https://www.example.com");
+    urlDto.setShortUrl("http://short.url/" + shortCode);
+    urlDto.setClicks(0);
+
+    when(urlService.getUrlByShortCode(shortCode)).thenReturn(urlDto);
+
+    mockMvc
+        .perform(get("/api/urls/{shortCode}", shortCode))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.shortCode").value(shortCode));
+
+    verify(urlService).getUrlByShortCode(shortCode);
+  }
+
+  @Test
+  @WithMockUser(roles = "ADMIN")
+  @DisplayName("Should allow ADMIN role to get URL by short code")
+  void shouldAllowAdminRoleToGetUrlByShortCode() throws Exception {
+    String shortCode = "abc123";
+
+    UrlDto urlDto = new UrlDto();
+    urlDto.setId(1L);
+    urlDto.setShortCode(shortCode);
+    urlDto.setLongUrl("https://www.example.com");
+    urlDto.setShortUrl("http://short.url/" + shortCode);
+    urlDto.setClicks(0);
+
+    when(urlService.getUrlByShortCode(shortCode)).thenReturn(urlDto);
+
+    mockMvc
+        .perform(get("/api/urls/{shortCode}", shortCode))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.shortCode").value(shortCode));
+
+    verify(urlService).getUrlByShortCode(shortCode);
+  }
+
+  @Test
+  @WithMockUser(roles = "USER")
+  @DisplayName("Should allow USER role to delete URL")
+  void shouldAllowUserRoleToDeleteUrl() throws Exception {
+    String shortCode = "abc123";
+
+    doNothing().when(urlService).deleteUrl(shortCode);
+
+    mockMvc
+        .perform(delete("/api/urls/{shortCode}", shortCode))
+        .andExpect(status().isNoContent());
+
+    verify(urlService).deleteUrl(shortCode);
+  }
+
+  @Test
+  @WithMockUser(roles = "ADMIN")
+  @DisplayName("Should allow ADMIN role to delete URL")
+  void shouldAllowAdminRoleToDeleteUrl() throws Exception {
+    String shortCode = "abc123";
+
+    doNothing().when(urlService).deleteUrl(shortCode);
+
+    mockMvc
+        .perform(delete("/api/urls/{shortCode}", shortCode))
+        .andExpect(status().isNoContent());
+
+    verify(urlService).deleteUrl(shortCode);
+  }
+
+  @Test
+  @DisplayName("Should allow redirect without authentication")
+  void shouldAllowRedirectWithoutAuthentication() throws Exception {
+    String shortCode = "abc123";
+    String longUrl = "https://www.example.com";
+
+    Url url = new Url();
+    url.setId(1L);
+    url.setShortCode(shortCode);
+    url.setLongUrl(longUrl);
+
+    when(urlService.redirect(shortCode)).thenReturn(url);
+
+    mockMvc
+        .perform(get("/{shortCode}", shortCode))
+        .andExpect(status().isTemporaryRedirect())
+        .andExpect(header().string("Location", longUrl));
+
+    verify(urlService).redirect(shortCode);
+  }
+
+  @Test
+  @WithMockUser(roles = "USER")
+  @DisplayName("Should handle sorting and filtering with USER role")
+  void shouldHandleSortingAndFilteringWithUserRole() throws Exception {
+    Page<Url> urlPage = new PageImpl<>(Arrays.asList());
+
+    when(urlService.getUrls(0, 10, "clicks", "desc")).thenReturn(urlPage);
+
+    mockMvc
+        .perform(
+            get("/api/urls")
+                .param("pageNo", "0")
+                .param("pageSize", "10")
+                .param("sortBy", "clicks")
+                .param("sortDirection", "desc"))
+        .andExpect(status().isOk());
+
+    verify(urlService).getUrls(0, 10, "clicks", "desc");
+  }
+
+  @Test
+  @WithMockUser(roles = "ADMIN")
+  @DisplayName("Should handle sorting and filtering with ADMIN role")
+  void shouldHandleSortingAndFilteringWithAdminRole() throws Exception {
+    Page<Url> urlPage = new PageImpl<>(Arrays.asList());
+
+    when(urlService.getUrls(0, 10, "createdAt", "asc")).thenReturn(urlPage);
+
+    mockMvc
+        .perform(
+            get("/api/urls")
+                .param("pageNo", "0")
+                .param("pageSize", "10")
+                .param("sortBy", "createdAt")
+                .param("sortDirection", "asc"))
+        .andExpect(status().isOk());
+
+    verify(urlService).getUrls(0, 10, "createdAt", "asc");
   }
 }

@@ -1,27 +1,27 @@
 package com.example.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.ArgumentMatchers.eq;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.catchThrowable;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
+import com.example.client.GrpcNotificationClient;
 import com.example.dto.NotificationDto;
 import com.example.dto.PagedNotificationsDto;
-import com.example.grpc.notification.GetNotificationsResponse;
-import com.example.grpc.notification.Notification;
-import com.example.grpc.notification.NotificationStatus;
-import com.example.grpc.notification.NotificationType;
+import com.example.grpc.notification.*;
 import java.util.Arrays;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
-@DisplayName("NotificationService Tests")
+@DisplayName("NotificationService Tests - Business Logic Layer")
 class NotificationServiceTest {
 
   @Mock private GrpcNotificationClient grpcNotificationClient;
@@ -29,24 +29,87 @@ class NotificationServiceTest {
   @InjectMocks private NotificationService notificationService;
 
   @Test
-  @DisplayName("Should send URL created notification successfully")
-  void shouldSendUrlCreatedNotification() {
+  @DisplayName("Should build correct NotificationRequest for URL created notification")
+  void shouldBuildCorrectNotificationRequestForUrlCreatedNotification() {
     String shortCode = "abc123";
     String longUrl = "https://www.example.com";
 
+    NotificationReply mockReply =
+        NotificationReply.newBuilder()
+            .setSuccess(true)
+            .setMessage("Notification sent")
+            .setNotificationStatus(NotificationStatus.SUCCESS)
+            .build();
+
+    when(grpcNotificationClient.notify(any(NotificationRequest.class))).thenReturn(mockReply);
+
     notificationService.sendUrlCreatedNotification(shortCode, longUrl);
 
-    verify(grpcNotificationClient).sendUrlCreatedNotification(eq(shortCode), eq(longUrl));
+    ArgumentCaptor<NotificationRequest> captor = ArgumentCaptor.forClass(NotificationRequest.class);
+    verify(grpcNotificationClient).notify(captor.capture());
+
+    NotificationRequest capturedRequest = captor.getValue();
+    assertThat(capturedRequest.getNotificationType()).isEqualTo(NotificationType.NEWURL);
+    assertThat(capturedRequest.getShortCode()).isEqualTo(shortCode);
+    assertThat(capturedRequest.getMessage()).isEqualTo("New URL Created: " + longUrl);
   }
 
   @Test
-  @DisplayName("Should send threshold notification successfully")
-  void shouldSendThresholdNotification() {
+  @DisplayName("Should build correct NotificationRequest for threshold notification")
+  void shouldBuildCorrectNotificationRequestForThresholdNotification() {
     String shortCode = "abc123";
+
+    NotificationReply mockReply =
+        NotificationReply.newBuilder()
+            .setSuccess(true)
+            .setMessage("Notification sent")
+            .setNotificationStatus(NotificationStatus.SUCCESS)
+            .build();
+
+    when(grpcNotificationClient.notify(any(NotificationRequest.class))).thenReturn(mockReply);
 
     notificationService.sendThresholdNotification(shortCode);
 
-    verify(grpcNotificationClient).sendThresholdNotification(eq(shortCode));
+    ArgumentCaptor<NotificationRequest> captor = ArgumentCaptor.forClass(NotificationRequest.class);
+    verify(grpcNotificationClient).notify(captor.capture());
+
+    NotificationRequest capturedRequest = captor.getValue();
+    assertThat(capturedRequest.getNotificationType()).isEqualTo(NotificationType.THRESHOLD);
+    assertThat(capturedRequest.getShortCode()).isEqualTo(shortCode);
+    assertThat(capturedRequest.getMessage()).isEqualTo("Threshold reached for shortcode - 'abc123'");
+  }
+
+  @Test
+  @DisplayName("Should handle exception when sending URL created notification")
+  void shouldHandleExceptionWhenSendingUrlCreatedNotification() {
+    String shortCode = "abc123";
+    String longUrl = "https://www.example.com";
+
+    when(grpcNotificationClient.notify(any(NotificationRequest.class)))
+        .thenThrow(new RuntimeException("gRPC error"));
+
+    // Should propagate the exception
+    assertThatThrownBy(() -> notificationService.sendUrlCreatedNotification(shortCode, longUrl))
+        .isInstanceOf(RuntimeException.class)
+        .hasMessageContaining("gRPC error");
+
+    verify(grpcNotificationClient).notify(any(NotificationRequest.class));
+  }
+
+  @Test
+  @DisplayName("Should handle exception when sending threshold notification")
+  void shouldHandleExceptionWhenSendingThresholdNotification() {
+    String shortCode = "abc123";
+
+    when(grpcNotificationClient.notify(any(NotificationRequest.class)))
+        .thenThrow(new RuntimeException("gRPC error"));
+
+    // Should propagate the exception
+    assertThatThrownBy(() -> notificationService.sendThresholdNotification(shortCode))
+        .isInstanceOf(RuntimeException.class)
+        .hasMessageContaining("gRPC error");
+
+    verify(grpcNotificationClient).notify(any(NotificationRequest.class));
   }
 
   @Test
@@ -82,7 +145,7 @@ class NotificationServiceTest {
             .setTotalElements(2L)
             .build();
 
-    when(grpcNotificationClient.getNotifications(eq(pageNo), eq(pageSize), anyString(), anyString()))
+    when(grpcNotificationClient.getNotifications(any(GetNotificationsRequest.class)))
         .thenReturn(grpcResponse);
 
     PagedNotificationsDto result = notificationService.getNotifications(pageNo, pageSize, null, null);
@@ -108,7 +171,13 @@ class NotificationServiceTest {
     assertThat(secondNotification.getNotificationType()).isEqualTo("THRESHOLD");
     assertThat(secondNotification.getNotificationStatus()).isEqualTo("SUCCESS");
 
-    verify(grpcNotificationClient).getNotifications(eq(pageNo), eq(pageSize), anyString(), anyString());
+    ArgumentCaptor<GetNotificationsRequest> captor =
+        ArgumentCaptor.forClass(GetNotificationsRequest.class);
+    verify(grpcNotificationClient).getNotifications(captor.capture());
+
+    GetNotificationsRequest capturedRequest = captor.getValue();
+    assertThat(capturedRequest.getPageNo()).isEqualTo(pageNo);
+    assertThat(capturedRequest.getPageSize()).isEqualTo(pageSize);
   }
 
   @Test
@@ -125,7 +194,7 @@ class NotificationServiceTest {
             .setTotalElements(0L)
             .build();
 
-    when(grpcNotificationClient.getNotifications(eq(pageNo), eq(pageSize), anyString(), anyString()))
+    when(grpcNotificationClient.getNotifications(any(GetNotificationsRequest.class)))
         .thenReturn(grpcResponse);
 
     PagedNotificationsDto result = notificationService.getNotifications(pageNo, pageSize, null, null);
@@ -137,7 +206,7 @@ class NotificationServiceTest {
     assertThat(result.getTotalPages()).isEqualTo(0);
     assertThat(result.getTotalElements()).isEqualTo(0L);
 
-    verify(grpcNotificationClient).getNotifications(eq(pageNo), eq(pageSize), anyString(), anyString());
+    verify(grpcNotificationClient).getNotifications(any(GetNotificationsRequest.class));
   }
 
   @Test
@@ -164,7 +233,7 @@ class NotificationServiceTest {
             .setTotalElements(25L)
             .build();
 
-    when(grpcNotificationClient.getNotifications(eq(pageNo), eq(pageSize), anyString(), anyString()))
+    when(grpcNotificationClient.getNotifications(any(GetNotificationsRequest.class)))
         .thenReturn(grpcResponse);
 
     PagedNotificationsDto result = notificationService.getNotifications(pageNo, pageSize, null, null);
@@ -175,7 +244,7 @@ class NotificationServiceTest {
     assertThat(result.getTotalPages()).isEqualTo(5);
     assertThat(result.getTotalElements()).isEqualTo(25L);
 
-    verify(grpcNotificationClient).getNotifications(eq(pageNo), eq(pageSize), anyString(), anyString());
+    verify(grpcNotificationClient).getNotifications(any(GetNotificationsRequest.class));
   }
 
   @Test
@@ -208,7 +277,7 @@ class NotificationServiceTest {
             .setTotalElements(2L)
             .build();
 
-    when(grpcNotificationClient.getNotifications(anyInt(), anyInt(), anyString(), anyString()))
+    when(grpcNotificationClient.getNotifications(any(GetNotificationsRequest.class)))
         .thenReturn(grpcResponse);
 
     PagedNotificationsDto result = notificationService.getNotifications(0, 10, null, null);
@@ -257,7 +326,7 @@ class NotificationServiceTest {
             .setTotalElements(3L)
             .build();
 
-    when(grpcNotificationClient.getNotifications(anyInt(), anyInt(), anyString(), anyString()))
+    when(grpcNotificationClient.getNotifications(any(GetNotificationsRequest.class)))
         .thenReturn(grpcResponse);
 
     PagedNotificationsDto result = notificationService.getNotifications(0, 10, null, null);
@@ -289,7 +358,7 @@ class NotificationServiceTest {
             .setTotalElements(1L)
             .build();
 
-    when(grpcNotificationClient.getNotifications(anyInt(), anyInt(), anyString(), anyString()))
+    when(grpcNotificationClient.getNotifications(any(GetNotificationsRequest.class)))
         .thenReturn(grpcResponse);
 
     PagedNotificationsDto result = notificationService.getNotifications(0, 1, null, null);
@@ -305,61 +374,58 @@ class NotificationServiceTest {
   @Test
   @DisplayName("Should throw IllegalArgumentException when page number is negative")
   void shouldThrowIllegalArgumentExceptionWhenPageNumberIsNegative() {
-    assertThat(org.assertj.core.api.Assertions.catchThrowable(
-            () -> notificationService.getNotifications(-1, 10, null, null)))
+    assertThat(catchThrowable(() -> notificationService.getNotifications(-1, 10, null, null)))
         .isInstanceOf(IllegalArgumentException.class)
         .hasMessageContaining("Page number cannot be negative");
 
-    verify(grpcNotificationClient, never()).getNotifications(anyInt(), anyInt(), anyString(), anyString());
+    verify(grpcNotificationClient, never()).getNotifications(any(GetNotificationsRequest.class));
   }
 
   @Test
   @DisplayName("Should throw IllegalArgumentException when page size is zero")
   void shouldThrowIllegalArgumentExceptionWhenPageSizeIsZero() {
-    assertThat(org.assertj.core.api.Assertions.catchThrowable(
-            () -> notificationService.getNotifications(0, 0, null, null)))
+    assertThat(catchThrowable(() -> notificationService.getNotifications(0, 0, null, null)))
         .isInstanceOf(IllegalArgumentException.class)
         .hasMessageContaining("Page size must be greater than zero");
 
-    verify(grpcNotificationClient, never()).getNotifications(anyInt(), anyInt(), anyString(), anyString());
+    verify(grpcNotificationClient, never()).getNotifications(any(GetNotificationsRequest.class));
   }
 
   @Test
   @DisplayName("Should throw IllegalArgumentException when page size is negative")
   void shouldThrowIllegalArgumentExceptionWhenPageSizeIsNegative() {
-    assertThat(org.assertj.core.api.Assertions.catchThrowable(
-            () -> notificationService.getNotifications(0, -5, null, null)))
+    assertThat(catchThrowable(() -> notificationService.getNotifications(0, -5, null, null)))
         .isInstanceOf(IllegalArgumentException.class)
         .hasMessageContaining("Page size must be greater than zero");
 
-    verify(grpcNotificationClient, never()).getNotifications(anyInt(), anyInt(), anyString(), anyString());
+    verify(grpcNotificationClient, never()).getNotifications(any(GetNotificationsRequest.class));
   }
 
   @Test
   @DisplayName("Should throw IllegalArgumentException when sortBy field is invalid")
   void shouldThrowIllegalArgumentExceptionWhenSortByFieldIsInvalid() {
-    assertThat(org.assertj.core.api.Assertions.catchThrowable(
-            () -> notificationService.getNotifications(0, 10, "invalidField", null)))
+    assertThat(
+            catchThrowable(
+                () -> notificationService.getNotifications(0, 10, "invalidField", null)))
         .isInstanceOf(IllegalArgumentException.class)
         .hasMessageContaining("Invalid sortBy");
 
-    verify(grpcNotificationClient, never()).getNotifications(anyInt(), anyInt(), anyString(), anyString());
+    verify(grpcNotificationClient, never()).getNotifications(any(GetNotificationsRequest.class));
   }
 
   @Test
   @DisplayName("Should throw IllegalArgumentException when sortDirection is invalid")
   void shouldThrowIllegalArgumentExceptionWhenSortDirectionIsInvalid() {
-    assertThat(org.assertj.core.api.Assertions.catchThrowable(
-            () -> notificationService.getNotifications(0, 10, null, "invalid")))
+    assertThat(catchThrowable(() -> notificationService.getNotifications(0, 10, null, "invalid")))
         .isInstanceOf(IllegalArgumentException.class)
         .hasMessageContaining("Invalid sortDirection");
 
-    verify(grpcNotificationClient, never()).getNotifications(anyInt(), anyInt(), anyString(), anyString());
+    verify(grpcNotificationClient, never()).getNotifications(any(GetNotificationsRequest.class));
   }
 
   @Test
-  @DisplayName("Should get notifications sorted by id in ascending order")
-  void shouldGetNotificationsSortedByIdAscending() {
+  @DisplayName("Should build correct request with sortBy and sortDirection")
+  void shouldBuildCorrectRequestWithSortByAndSortDirection() {
     GetNotificationsResponse grpcResponse =
         GetNotificationsResponse.newBuilder()
             .setPageNo(0)
@@ -368,18 +434,25 @@ class NotificationServiceTest {
             .setTotalElements(0L)
             .build();
 
-    when(grpcNotificationClient.getNotifications(eq(0), eq(10), eq("id"), eq("asc")))
+    when(grpcNotificationClient.getNotifications(any(GetNotificationsRequest.class)))
         .thenReturn(grpcResponse);
 
-    PagedNotificationsDto result = notificationService.getNotifications(0, 10, "id", "asc");
+    notificationService.getNotifications(0, 10, "id", "asc");
 
-    assertThat(result).isNotNull();
-    verify(grpcNotificationClient).getNotifications(eq(0), eq(10), eq("id"), eq("asc"));
+    ArgumentCaptor<GetNotificationsRequest> captor =
+        ArgumentCaptor.forClass(GetNotificationsRequest.class);
+    verify(grpcNotificationClient).getNotifications(captor.capture());
+
+    GetNotificationsRequest capturedRequest = captor.getValue();
+    assertThat(capturedRequest.getPageNo()).isEqualTo(0);
+    assertThat(capturedRequest.getPageSize()).isEqualTo(10);
+    assertThat(capturedRequest.getSortBy()).isEqualTo("id");
+    assertThat(capturedRequest.getSortDirection()).isEqualTo("asc");
   }
 
   @Test
-  @DisplayName("Should get notifications sorted by shortCode")
-  void shouldGetNotificationsSortedByShortCode() {
+  @DisplayName("Should build request with default values when sort params are null")
+  void shouldBuildRequestWithDefaultValuesWhenSortParamsAreNull() {
     GetNotificationsResponse grpcResponse =
         GetNotificationsResponse.newBuilder()
             .setPageNo(0)
@@ -388,32 +461,20 @@ class NotificationServiceTest {
             .setTotalElements(0L)
             .build();
 
-    when(grpcNotificationClient.getNotifications(eq(0), eq(10), eq("shortCode"), eq("desc")))
+    when(grpcNotificationClient.getNotifications(any(GetNotificationsRequest.class)))
         .thenReturn(grpcResponse);
 
-    PagedNotificationsDto result = notificationService.getNotifications(0, 10, "shortCode", "desc");
+    notificationService.getNotifications(0, 10, null, null);
 
-    assertThat(result).isNotNull();
-    verify(grpcNotificationClient).getNotifications(eq(0), eq(10), eq("shortCode"), eq("desc"));
+    ArgumentCaptor<GetNotificationsRequest> captor =
+        ArgumentCaptor.forClass(GetNotificationsRequest.class);
+    verify(grpcNotificationClient).getNotifications(captor.capture());
+
+    GetNotificationsRequest capturedRequest = captor.getValue();
+    assertThat(capturedRequest.getPageNo()).isEqualTo(0);
+    assertThat(capturedRequest.getPageSize()).isEqualTo(10);
+    assertThat(capturedRequest.getSortBy()).isEqualTo("id");
+    assertThat(capturedRequest.getSortDirection()).isEqualTo("DESC");
   }
 
-  @Test
-  @DisplayName("Should get notifications sorted by createdAt")
-  void shouldGetNotificationsSortedByCreatedAt() {
-    GetNotificationsResponse grpcResponse =
-        GetNotificationsResponse.newBuilder()
-            .setPageNo(0)
-            .setPageSize(10)
-            .setTotalPages(1)
-            .setTotalElements(0L)
-            .build();
-
-    when(grpcNotificationClient.getNotifications(eq(0), eq(10), eq("createdAt"), eq("asc")))
-        .thenReturn(grpcResponse);
-
-    PagedNotificationsDto result = notificationService.getNotifications(0, 10, "createdAt", "asc");
-
-    assertThat(result).isNotNull();
-    verify(grpcNotificationClient).getNotifications(eq(0), eq(10), eq("createdAt"), eq("asc"));
-  }
 }

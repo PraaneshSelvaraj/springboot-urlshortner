@@ -10,17 +10,21 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 @WebMvcTest(UrlController.class)
+@AutoConfigureMockMvc(addFilters = false)
 @DisplayName("GlobalExceptionHandler Tests")
 class GlobalExceptionHandlerTest {
 
   @Autowired private MockMvc mockMvc;
 
   @MockBean private UrlService urlService;
+
+  @MockBean private com.example.util.JwtUtil jwtUtil;
 
   @Test
   @DisplayName("Should handle InvalidUrlException and return 400 BAD REQUEST")
@@ -95,18 +99,18 @@ class GlobalExceptionHandlerTest {
   }
 
   @Test
-  @DisplayName("Should handle IllegalArgumentException and return 500 INTERNAL SERVER ERROR")
+  @DisplayName("Should handle IllegalArgumentException and return 400 BAD REQUEST")
   void shouldHandleIllegalArgumentExceptionAndReturn500() throws Exception {
     Mockito.when(urlService.getUrls(Mockito.eq(-1), Mockito.eq(10), Mockito.isNull(), Mockito.isNull()))
         .thenThrow(new IllegalArgumentException("Page number cannot be negative"));
 
     mockMvc
         .perform(get("/api/urls").param("pageNo", "-1").param("pageSize", "10"))
-        .andExpect(status().isInternalServerError())
-        .andExpect(jsonPath("$.status").value(500))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.status").value(400))
         .andExpect(
             jsonPath("$.message")
-                .value("An unexpected error occurred: Page number cannot be negative"));
+                .value("Page number cannot be negative"));
   }
 
   @Test

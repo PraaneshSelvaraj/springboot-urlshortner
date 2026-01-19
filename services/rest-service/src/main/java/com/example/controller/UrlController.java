@@ -10,6 +10,7 @@ import java.util.Map;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -35,12 +36,14 @@ public class UrlController {
   }
 
   @PostMapping("/api/urls")
+  @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
   public ResponseEntity<UrlDto> addUrl(@RequestBody ShortenRequest request) {
     UrlDto newUrl = urlService.addUrl(request.getUrl());
     return new ResponseEntity<>(newUrl, HttpStatus.CREATED);
   }
 
   @GetMapping("/api/urls")
+  @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
   public ResponseEntity<Page<Url>> getUrls(
       @RequestParam(defaultValue = "0") int pageNo,
       @RequestParam(defaultValue = "10") int pageSize,
@@ -51,12 +54,14 @@ public class UrlController {
   }
 
   @GetMapping("/api/urls/{shortCode}")
+  @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
   public ResponseEntity<UrlDto> getUrlByShortCode(@PathVariable String shortCode) {
     UrlDto urlDto = urlService.getUrlByShortCode(shortCode);
     return new ResponseEntity<>(urlDto, HttpStatus.OK);
   }
 
   @DeleteMapping("/api/urls/{shortCode}")
+  @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
   public ResponseEntity<Void> deleteUrl(@PathVariable String shortCode) {
     urlService.deleteUrl(shortCode);
     return ResponseEntity.noContent().build();

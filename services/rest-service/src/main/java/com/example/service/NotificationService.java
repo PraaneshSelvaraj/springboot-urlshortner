@@ -1,9 +1,15 @@
 package com.example.service;
 
+import com.example.client.GrpcNotificationClient;
 import com.example.dto.NotificationDto;
 import com.example.dto.PagedNotificationsDto;
+import com.example.grpc.notification.GetNotificationsRequest;
 import com.example.grpc.notification.GetNotificationsResponse;
 import com.example.grpc.notification.Notification;
+import com.example.grpc.notification.NotificationRequest;
+import com.example.grpc.notification.NotificationType;
+import com.example.util.GrpcExceptionHandler;
+import io.grpc.StatusRuntimeException;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -18,11 +24,50 @@ public class NotificationService {
   }
 
   public void sendUrlCreatedNotification(String shortCode, String longUrl) {
-    notificationClient.sendUrlCreatedNotification(shortCode, longUrl);
+    try {
+      NotificationRequest request =
+          NotificationRequest.newBuilder()
+              .setNotificationType(NotificationType.NEWURL)
+              .setShortCode(shortCode)
+              .setMessage("New URL Created: " + longUrl)
+              .build();
+
+      notificationClient.notify(request);
+
+    } catch (StatusRuntimeException e) {
+      throw GrpcExceptionHandler.handleGrpcException(e, "Failed to send URL created notification");
+    }
   }
 
   public void sendThresholdNotification(String shortCode) {
-    notificationClient.sendThresholdNotification(shortCode);
+    try {
+      NotificationRequest request =
+          NotificationRequest.newBuilder()
+              .setNotificationType(NotificationType.THRESHOLD)
+              .setShortCode(shortCode)
+              .setMessage("Threshold reached for shortcode - '" + shortCode + "'")
+              .build();
+
+      notificationClient.notify(request);
+
+    } catch (StatusRuntimeException e) {
+      throw GrpcExceptionHandler.handleGrpcException(e, "Failed to send threshold notification");
+    }
+  }
+
+  public void sendUserCreatedNotification(String username) {
+    try {
+      NotificationRequest request =
+          NotificationRequest.newBuilder()
+              .setNotificationType(NotificationType.NEWUSER)
+              .setMessage("New User Created - '" + username + "'")
+              .build();
+
+      notificationClient.notify(request);
+
+    } catch (StatusRuntimeException e) {
+      throw GrpcExceptionHandler.handleGrpcException(e, "Failed to send user created notification");
+    }
   }
 
   public PagedNotificationsDto getNotifications(
@@ -43,15 +88,31 @@ public class NotificationService {
     String validSortBy = sortBy != null ? sortBy : "id";
 
     if (sortDirection != null
-        && !sortDirection.equalsIgnoreCase("asc")
-        && !sortDirection.equalsIgnoreCase("desc")) {
+        && !sortDirection.equalsIgnoreCase("ASC")
+        && !sortDirection.equalsIgnoreCase("DESC")) {
       throw new IllegalArgumentException(
-          "Invalid sortDirection: '" + sortDirection + "'. Allowed values: asc, desc");
+          "Invalid sortDirection: '" + sortDirection + "'. Allowed values: ASC, DESC");
     }
-    String direction = sortDirection != null ? sortDirection : "desc";
+    String direction = sortDirection != null ? sortDirection : "DESC";
 
-    GetNotificationsResponse notificationsResponse =
-        notificationClient.getNotifications(pageNo, pageSize, validSortBy, direction);
+    GetNotificationsRequest.Builder requestBuilder =
+        GetNotificationsRequest.newBuilder().setPageNo(pageNo).setPageSize(pageSize);
+
+    if (validSortBy != null) {
+      requestBuilder.setSortBy(validSortBy);
+    }
+    if (direction != null) {
+      requestBuilder.setSortDirection(direction);
+    }
+
+    GetNotificationsRequest request = requestBuilder.build();
+
+    GetNotificationsResponse notificationsResponse;
+    try {
+      notificationsResponse = notificationClient.getNotifications(request);
+    } catch (StatusRuntimeException e) {
+      throw GrpcExceptionHandler.handleGrpcException(e, "Failed to fetch notifications");
+    }
 
     List<NotificationDto> notifications =
         notificationsResponse.getNotificationsList().stream()

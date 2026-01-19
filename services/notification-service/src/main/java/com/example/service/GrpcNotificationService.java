@@ -100,7 +100,7 @@ public class GrpcNotificationService extends NotificationServiceGrpc.Notificatio
       int pageNo = request.hasPageNo() ? request.getPageNo() : 0;
       int pageSize = request.hasPageSize() ? request.getPageSize() : 10;
       String sortBy = request.hasSortBy() ? request.getSortBy() : "id";
-      String sortDirection = request.hasSortDirection() ? request.getSortDirection() : "desc";
+      String sortDirection = request.hasSortDirection() ? request.getSortDirection() : "DESC";
 
       if (pageNo < 0) {
         throw Status.INVALID_ARGUMENT
@@ -126,15 +126,40 @@ public class GrpcNotificationService extends NotificationServiceGrpc.Notificatio
       }
 
       Sort.Direction direction =
-          sortDirection.equalsIgnoreCase("asc") ? Sort.Direction.ASC : Sort.Direction.DESC;
+          switch (sortDirection.toUpperCase()) {
+            case "ASC" -> Sort.Direction.ASC;
+            case "DESC" -> Sort.Direction.DESC;
+            default ->
+                throw Status.INVALID_ARGUMENT
+                    .withDescription(
+                        "Invalid sortDirection field: '"
+                            + sortDirection
+                            + "'. Allowed fields: ASC, DESC")
+                    .asRuntimeException();
+          };
 
       Pageable pageable = PageRequest.of(pageNo, pageSize, Sort.by(direction, sortBy));
       Page<NotificationModel> notificationPage;
 
       notificationPage = notificationRepo.findAll(pageable);
 
+      if (pageNo > 0
+          && notificationPage.getTotalPages() > 0
+          && pageNo >= notificationPage.getTotalPages()) {
+        throw Status.INVALID_ARGUMENT
+            .withDescription(
+                "Page number "
+                    + pageNo
+                    + " exceeds total pages ("
+                    + notificationPage.getTotalPages()
+                    + ")")
+            .asRuntimeException();
+      }
+
       List<Notification> grpcList =
-          notificationPage.getContent().stream().map(this::mapToGrpc).collect(Collectors.toList());
+          notificationPage.getContent().stream()
+              .map(this::mapToGrpcNotification)
+              .collect(Collectors.toList());
 
       GetNotificationsResponse response =
           GetNotificationsResponse.newBuilder()
@@ -158,7 +183,7 @@ public class GrpcNotificationService extends NotificationServiceGrpc.Notificatio
     }
   }
 
-  private Notification mapToGrpc(NotificationModel notification) {
+  private Notification mapToGrpcNotification(NotificationModel notification) {
     Instant instant = notification.getCreatedAt().toInstant(ZoneOffset.UTC);
     Timestamp createdAt =
         Timestamp.newBuilder()

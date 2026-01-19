@@ -4,6 +4,8 @@ import com.example.dto.UrlDto;
 import com.example.exception.*;
 import com.example.model.Url;
 import com.example.repository.UrlRepository;
+import com.example.util.UserContext;
+import io.grpc.Status;
 import java.net.InetAddress;
 import java.net.URI;
 import java.time.LocalDateTime;
@@ -16,6 +18,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -25,10 +28,10 @@ public class UrlService {
 
   private static final Random random = new Random();
 
-  @Value("${bannedHosts}")
+  @Value("${banned-hosts}")
   private Set<String> bannedHosts;
 
-  @Value("${urlExpirationHours}")
+  @Value("${url-expiration-hours}")
   private int urlExpirationHours;
 
   @Value("${notification.threshold}")
@@ -51,11 +54,14 @@ public class UrlService {
     LocalDateTime currentTime = LocalDateTime.now();
     LocalDateTime expiresAt = currentTime.plusHours(urlExpirationHours);
 
+    long userId = UserContext.getCurrentUserId();
+
     Url newUrl = new Url();
     newUrl.setShortCode(code);
     newUrl.setLongUrl(url);
     newUrl.setClicks(0);
     newUrl.setDeleted(false);
+    newUrl.setCreatedBy(userId);
     newUrl.setCreatedAt(currentTime);
     newUrl.setUpdatedAt(currentTime);
     newUrl.setExpiresAt(expiresAt);
@@ -104,11 +110,38 @@ public class UrlService {
     String validDirection = sortDirection != null ? sortDirection : "desc";
 
     Sort.Direction direction =
-        validDirection.equalsIgnoreCase("asc") ? Sort.Direction.ASC : Sort.Direction.DESC;
+        switch (validDirection.toUpperCase()) {
+          case "ASC" -> Sort.Direction.ASC;
+          case "DESC" -> Sort.Direction.DESC;
+          default ->
+              throw Status.INVALID_ARGUMENT
+                  .withDescription(
+                      "Invalid sortDirection field: '"
+                          + sortDirection
+                          + "'. Allowed fields: ASC, DESC")
+                  .asRuntimeException();
+        };
 
     Pageable pageable = PageRequest.of(pageNo, pageSize, Sort.by(direction, validSortBy));
 
-    return urlRepo.findAll(pageable);
+    String userRole = UserContext.getCurrentUserRole();
+
+    Page<Url> urlPage;
+    if (userRole.equalsIgnoreCase("admin")) {
+      urlPage = urlRepo.findAll(pageable);
+    } else {
+      long userId = UserContext.getCurrentUserId();
+      urlPage = urlRepo.findByCreatedBy(userId, pageable);
+    }
+
+    if (pageNo > 0 && urlPage.getTotalPages() > 0 && pageNo >= urlPage.getTotalPages()) {
+      throw Status.INVALID_ARGUMENT
+          .withDescription(
+              "Page number " + pageNo + " exceeds total pages (" + urlPage.getTotalPages() + ")")
+          .asRuntimeException();
+    }
+
+    return urlPage;
   }
 
   public UrlDto getUrlByShortCode(String shortCode) {
@@ -117,6 +150,12 @@ public class UrlService {
         urlOpt.orElseThrow(
             () ->
                 new NoSuchElementException("Url with shortcocde " + shortCode + " does not exist"));
+
+    long userId = UserContext.getCurrentUserId();
+    String userRole = UserContext.getCurrentUserRole();
+    if (userRole.equalsIgnoreCase("user") && userId != url.getCreatedBy()) {
+      throw new AccessDeniedException("You do not have permission to view this URL");
+    }
 
     UrlDto urlDto = new UrlDto();
     urlDto.setId(url.getId());
@@ -163,6 +202,12 @@ public class UrlService {
     Url url =
         urlOpt.orElseThrow(
             () -> new NoSuchElementException("URL with short code '" + shortCode + "' not found"));
+
+    long userId = UserContext.getCurrentUserId();
+    String userRole = UserContext.getCurrentUserRole();
+    if (userRole.equalsIgnoreCase("user") && userId != url.getCreatedBy()) {
+      throw new AccessDeniedException("You do not have permission to view this URL");
+    }
 
     urlRepo.delete(url);
   }
