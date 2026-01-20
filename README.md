@@ -76,17 +76,19 @@ Key capabilities include URL shortening with validation, click tracking with thr
 
 - **Local Authentication**: Username/password with BCrypt hashing
 - **Google OAuth2 Integration**: Seamless sign-in with Google accounts, automatic account creation
-- **JWT-Based Security**:
+- **JWT-Based Security** (RS256 asymmetric signing):
   - Access tokens for API authentication
   - Refresh tokens for session renewal
 - **Token Refresh Mechanism**: Server-side token storage for secure refresh flow
 - **Full User CRUD**: Create, read, update, delete operations via gRPC (7 RPC methods)
+- **User Ownership & Role-Based Access**: Users own their URLs and can only view/manage their own; ADMIN role can access all resources
 - **Soft Deletes**: Users are flagged as deleted, not removed from database
 - **Strong Password Requirements**: Enforces 8+ chars with uppercase, lowercase, digit, and special character
 
 ### Technical Features
 
 - **Multi-Stage Docker Builds**: Optimized container images with separate build and runtime stages
+- **gRPC JWT Propagation**: Authentication context automatically propagated across microservices
 - **Comprehensive Test Coverage**: JUnit 5 tests with H2 in-memory database
 - **Code Formatting Enforcement**: Google Java Format via CI pipeline
 - **CI/CD Integration**: Automated testing and formatting checks on every commit
@@ -110,7 +112,7 @@ Key capabilities include URL shortening with validation, click tracking with thr
 
 ### Security
 
-- **JWT (JJWT)**
+- **JWT (JJWT)** with RS256 asymmetric signing
 - **BCrypt**
 - **Google OAuth2**
 
@@ -311,9 +313,10 @@ grpc.notification.port=9091
 **JWT Configuration**:
 
 ```properties
-jwt.access-token.expiration=3600000      # 1 hour in milliseconds
-jwt.refresh-token.expiration=604800000   # 7 days in milliseconds
-jwt.secret=<256-bit-secret-key>          # Must be securely generated
+jwt.access-token.expiration=3600000           # 1 hour in milliseconds
+jwt.refresh-token.expiration=604800000        # 7 days in milliseconds
+jwt.rsa.private-key=<path-to-private-key>     # RSA private key for signing
+jwt.rsa.public-key=<path-to-public-key>       # RSA public key for verification
 ```
 
 **Password Requirements**:
@@ -334,6 +337,8 @@ jwt.secret=<256-bit-secret-key>          # Must be securely generated
 - `user.proto`: User service contract
 
 ## API Documentation
+
+**Authentication**: URL Management APIs require authentication. Authenticated users can only view and manage their own URLs. Users with ADMIN role can access all URLs.
 
 ### URL Management APIs
 
@@ -488,7 +493,7 @@ Permanently removes a shortened URL from the system.
 
 #### 6. Get All Notifications
 
-Retrieves a paginated list of notification events.
+Retrieves a paginated list of notification events. Requires ADMIN role.
 
 - **URL**: `/api/notifications`
 - **Method**: `GET`
@@ -531,7 +536,7 @@ Retrieves a paginated list of notification events.
 
 Registers a new user with local authentication.
 
-- **URL**: `/api/user`
+- **URL**: `/api/users`
 - **Method**: `POST`
 - **Request Body**:
 
@@ -543,22 +548,17 @@ Registers a new user with local authentication.
   }
   ```
 
-- **Response** (200 OK):
+- **Response** (201 Created):
 
   ```json
   {
-    "message": "User Created",
-    "data": {
-      "id": 1,
-      "username": "johndoe",
-      "email": "john.doe@example.com",
-      "password": "$2a$10$whDZI03pauJJi5xOOgnqqO...",
-      "role": "USER",
-      "authProvider": "LOCAL",
-      "isDeleted": false,
-      "createdAt": "2025-01-06T12:30:07",
-      "updatedAt": "2025-01-06T12:30:07"
-    }
+    "id": 1,
+    "username": "johndoe",
+    "email": "john.doe@example.com",
+    "role": "USER",
+    "authProvider": "LOCAL",
+    "createdAt": "2025-01-06T12:30:07",
+    "updatedAt": "2025-01-06T12:30:07"
   }
   ```
 
@@ -569,27 +569,22 @@ Registers a new user with local authentication.
 
 #### 8. Get User by ID
 
-Retrieves user details by id.
+Retrieves user details by id. Requires authentication (users can only view their own profile, ADMIN can view any).
 
-- **URL**: `/api/user/{id}`
+- **URL**: `/api/users/{id}`
 - **Method**: `GET`
-- **Example**: `GET /api/user/1`
+- **Example**: `GET /api/users/1`
 - **Response** (200 OK):
 
   ```json
   {
-    "message": "User with Id: 1 was fetched.",
-    "data": {
-      "id": 1,
-      "username": "johndoe",
-      "email": "john.doe@example.com",
-      "password": "$2a$10$whDZI03pauJJi5xOOgnqqO...",
-      "role": "USER",
-      "authProvider": "LOCAL",
-      "isDeleted": false,
-      "createdAt": "2025-01-06T12:30:07",
-      "updatedAt": "2025-01-06T12:30:07"
-    }
+    "id": 1,
+    "username": "johndoe",
+    "email": "john.doe@example.com",
+    "role": "USER",
+    "authProvider": "LOCAL",
+    "createdAt": "2025-01-06T12:30:07",
+    "updatedAt": "2025-01-06T12:30:07"
   }
   ```
 
@@ -604,11 +599,11 @@ Retrieves user details by id.
 
 #### 9. Delete User
 
-Performs a soft delete on a user account (sets `isDeleted` flag).
+Performs a soft delete on a user account (sets `isDeleted` flag). Requires authentication (users can only delete their own account, ADMIN can delete any).
 
-- **URL**: `/api/user/{id}`
+- **URL**: `/api/users/{id}`
 - **Method**: `DELETE`
-- **Example**: `DELETE /api/user/1`
+- **Example**: `DELETE /api/users/1`
 - **Response**: `204 No Content`
 
 ### Authentication APIs
@@ -660,17 +655,9 @@ Authenticates or registers a user with Google OAuth2 ID token.
 
   ```json
   {
-    "success": true,
     "message": "Account created and login successful",
     "accessToken": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...",
-    "refreshToken": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...",
-    "user": {
-      "id": 3,
-      "username": "John Doe",
-      "email": "john.doe@gmail.com",
-      "role": "USER",
-      "authProvider": "GOOGLE"
-    }
+    "refreshToken": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9..."
   }
   ```
 
@@ -791,9 +778,13 @@ NOTIFICATION_THRESHOLD=100
 #### JWT Configuration
 
 ```bash
-# Secret key for JWT signing (MUST be at least 256 bits)
-# Generate with: openssl rand -base64 32
-JWT_SECRET=your-256-bit-secret-key-here
+# RSA private key path for JWT signing (RS256 asymmetric encryption)
+# Generate key pair with: ssh-keygen -t rsa -b 2048 -m PEM -f jwtRS256.key
+# Then: openssl rsa -in jwtRS256.key -pubout -outform PEM -out jwtRS256.key.pub
+JWT_RSA_PRIVATE_KEY=/path/to/private-key.pem
+
+# RSA public key path for JWT verification
+JWT_RSA_PUBLIC_KEY=/path/to/public-key.pem
 
 # Access token expiration in milliseconds (3600000 = 1 hour)
 JWT_ACCESS_TOKEN_EXPIRATION=3600000

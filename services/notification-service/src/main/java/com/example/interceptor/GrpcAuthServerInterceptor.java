@@ -20,7 +20,8 @@ public class GrpcAuthServerInterceptor implements ServerInterceptor {
 
   private final JwtUtil jwtUtil;
 
-  private static final Set<String> PUBLIC_METHODS = Set.of();
+  private static final Set<String> PUBLIC_METHODS =
+      Set.of("notification.NotificationService/notify");
 
   private static class NoOpServerCallListener<ReqT> extends ServerCall.Listener<ReqT> {}
 
