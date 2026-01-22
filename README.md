@@ -306,6 +306,7 @@ grpc.notification.port=9091
 - `userLogin(LoginRequest) → LoginResponse`: Authenticate with email/password
 - `googleLogin(GoogleLoginRequest) → LoginResponse`: Authenticate with Google
 - `getUserById(GetUserRequest) → User`: Retrieve user details
+- `getUsers(GetUsersRequest) → GetUsersResponse`: Retrieve paginated list of users (ADMIN only)
 - `deleteUserById(DeleteUserRequest) → DeleteUserResponse`: Soft delete user
 - `refreshTokens(RefreshTokenRequest) → RefreshTokenResponse`: Generate new tokens
 - `logoutUser(LogoutUserRequest) → LogoutUserResponse`: End user session
@@ -327,6 +328,41 @@ jwt.rsa.public-key=<path-to-public-key>       # RSA public key for verification
 - At least one digit
 - At least one special character (@$!%*?&)
 
+**JWT Architecture & Security**:
+
+The application uses **RS256 (RSA Signature with SHA-256)** asymmetric encryption for JWT tokens:
+
+- **Token Types**:
+  - **Access Token**: `type: "auth"`, expires in 1 hour, used for API authentication
+  - **Refresh Token**: `type: "refresh"`, expires in 7 days, used for obtaining new access tokens
+
+- **Token Claims**:
+  - `sub`: User email
+  - `userId`: User ID
+  - `role`: User role (USER or ADMIN)
+  - `type`: Token type ("auth" or "refresh")
+  - `id`: JWT ID (JTI) - used for refresh token invalidation on logout
+
+- **Key Distribution**:
+  - **Private Key**: Used only by user-service for token signing
+  - **Public Key**: Used by rest-service and notification-service for token verification
+
+- **Token Storage**:
+  - Access tokens are stateless (no server-side storage)
+  - Refresh token JTI is stored in the database for blacklisting
+  - On logout, the JTI is cleared, preventing future refresh attempts
+
+**gRPC JWT Propagation (Commit 93a15f5)**:
+
+JWT authentication context is automatically propagated across microservices:
+
+- **Client-Side**: `GrpcAuthClientInterceptor` in rest-service extracts JWT from Spring SecurityContext and adds it to gRPC metadata headers
+- **Server-Side**: `GrpcAuthServerInterceptor` in user-service and notification-service validates JWT and creates user context
+- **Public Endpoints** (no authentication required):
+  - User Service: `createUser`, `userLogin`, `googleLogin`, `refreshTokens`
+  - Notification Service: `notify` (authentication removed in commit e911105)
+- **Protected Endpoints**: All other gRPC methods require valid JWT with `type: "auth"`
+
 ### GRPC-COMMON
 
 **Purpose**: Shared Protocol Buffer definitions
@@ -338,7 +374,37 @@ jwt.rsa.public-key=<path-to-public-key>       # RSA public key for verification
 
 ## API Documentation
 
-**Authentication**: URL Management APIs require authentication. Authenticated users can only view and manage their own URLs. Users with ADMIN role can access all URLs.
+**Authentication & Authorization:**
+
+All API endpoints have specific authentication requirements:
+
+- **URL Management APIs**:
+  - `POST /api/urls`: Requires USER or ADMIN role
+  - `GET /api/urls`: Requires USER or ADMIN role (users see only their own URLs, ADMIN sees all)
+  - `GET /api/urls/{shortCode}`: Requires USER or ADMIN role (users can only view their own URLs)
+  - `DELETE /api/urls/{shortCode}`: Requires USER or ADMIN role (users can only delete their own)
+  - `GET /{shortCode}`: No authentication required (public redirect)
+
+- **Notification APIs**:
+  - `GET /api/notifications`: Requires ADMIN role only
+
+- **User Management APIs**:
+  - `POST /api/users`: No authentication required (public registration)
+  - `GET /api/users`: Requires ADMIN role only
+  - `GET /api/users/{id}`: Requires USER or ADMIN role (users can only view their own profile, ADMIN can view any)
+  - `DELETE /api/users/{id}`: Requires USER or ADMIN role (users can only delete their own account, ADMIN can delete any)
+
+- **Authentication APIs**:
+  - `POST /api/auth/login`: No authentication required
+  - `POST /api/auth/google/login`: No authentication required
+  - `POST /api/auth/refresh`: Requires valid refresh token
+  - `POST /api/auth/logout`: Requires valid access token
+
+**User Ownership (Commit 78c4139):**
+- When a URL is created, it's automatically mapped to the authenticated user via the `createdBy` field
+- Users can only view, manage, and delete their own URLs
+- ADMIN role users can access and manage all URLs regardless of ownership
+- Attempting to access another user's resources results in `403 Forbidden` or filtered results
 
 ### URL Management APIs
 
@@ -510,7 +576,7 @@ Retrieves a paginated list of notification events. Requires ADMIN role.
     "notifications": [
       {
         "id": 1,
-        "message": "URL Created for https://example.com/",
+        "message": "New URL Created: https://example.com/",
         "shortCode": "5eQsiTg",
         "notificationType": "NEWURL",
         "notificationStatus": "SUCCESS"
@@ -538,6 +604,7 @@ Registers a new user with local authentication.
 
 - **URL**: `/api/users`
 - **Method**: `POST`
+- **Authentication**: None (public registration endpoint)
 - **Request Body**:
 
   ```json
@@ -606,9 +673,54 @@ Performs a soft delete on a user account (sets `isDeleted` flag). Requires authe
 - **Example**: `DELETE /api/users/1`
 - **Response**: `204 No Content`
 
+#### 10. Get All Users
+
+Retrieves a paginated list of all users. Requires ADMIN role.
+
+- **URL**: `/api/users`
+- **Method**: `GET`
+- **Authentication**: Required (ADMIN role only)
+- **Authorization**: `@PreAuthorize("hasRole('ADMIN')")`
+- **Query Parameters**:
+  - `pageNo` (optional, default: `0`): Page number
+  - `pageSize` (optional, default: `10`): Items per page
+  - `sortBy` (optional): Sort field - `id`, `username`, `email`, `role`, `authProvider`, `createdAt`, `updatedAt`
+  - `sortDirection` (optional): `asc` or `desc`
+- **Example**: `GET /api/users?pageNo=0&pageSize=10&sortBy=createdAt&sortDirection=desc`
+- **Response** (200 OK):
+
+  ```json
+  {
+    "users": [
+      {
+        "id": 1,
+        "username": "johndoe",
+        "email": "john.doe@example.com",
+        "role": "USER",
+        "authProvider": "LOCAL",
+        "createdAt": "2025-01-06T12:30:07",
+        "updatedAt": "2025-01-06T12:30:07"
+      },
+      {
+        "id": 2,
+        "username": "admin",
+        "email": "admin@example.com",
+        "role": "ADMIN",
+        "authProvider": "LOCAL",
+        "createdAt": "2025-01-05T10:20:15",
+        "updatedAt": "2025-01-05T10:20:15"
+      }
+    ],
+    "pageNo": 0,
+    "pageSize": 10,
+    "totalPages": 1,
+    "totalElements": 2
+  }
+  ```
+
 ### Authentication APIs
 
-#### 10. Local Login
+#### 11. Local Login
 
 Authenticates a user with email and password, returns JWT tokens.
 
@@ -627,7 +739,7 @@ Authenticates a user with email and password, returns JWT tokens.
 
   ```json
   {
-    "message": "Login was successful",
+    "message": "Login was Successful",
     "accessToken": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJleHAiOjE3MDQ2Mzg0MDcsImlhdCI6MTcwNDYzNDgwNywiZW1haWwiOiJqb2huLmRvZUBleGFtcGxlLmNvbSIsInJvbGUiOiJVU0VSIn0...",
     "refreshToken": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJleHAiOjE3MDUyMzk2MDcsImlhdCI6MTcwNDYzNDgwNywiZW1haWwiOiJqb2huLmRvZUBleGFtcGxlLmNvbSIsInJvbGUiOiJVU0VSIiwidHlwZSI6InJlZnJlc2gifQ..."
   }
@@ -637,7 +749,7 @@ Authenticates a user with email and password, returns JWT tokens.
   - `401 Unauthorized`: Invalid email or password
   - `403 Forbidden`: Account is deleted or uses different auth provider
 
-#### 11. Google OAuth2 Login
+#### 12. Google OAuth2 Login
 
 Authenticates or registers a user with Google OAuth2 ID token.
 
@@ -671,7 +783,7 @@ Authenticates or registers a user with Google OAuth2 ID token.
   }
   ```
 
-#### 12. Refresh Tokens
+#### 13. Refresh Tokens
 
 Generates new access and refresh tokens using a valid refresh token.
 
@@ -697,9 +809,33 @@ Generates new access and refresh tokens using a valid refresh token.
   - `401 Unauthorized`: Invalid or expired refresh token
   - `403 Forbidden`: Token doesn't match stored token
 
+#### 14. Logout
+
+Logs out the current user and invalidates refresh tokens.
+
+- **URL**: `/api/auth/logout`
+- **Method**: `POST`
+- **Authentication**: Required (Bearer access token)
+- **Headers**:
+
+  ```
+  Authorization: Bearer <access_token>
+  ```
+
+- **Response** (200 OK):
+
+  ```json
+  {
+    "success": true,
+    "message": "Logged out successfully"
+  }
+  ```
+
+- **Description**: Clears the refresh token JTI from the database, preventing future token refresh attempts. The access token becomes invalid for refresh operations.
+
 ### Health Check
 
-#### 13. Health Check
+#### 15. Health Check
 
 Checks if the REST service is running and operational.
 
@@ -778,13 +914,21 @@ NOTIFICATION_THRESHOLD=100
 #### JWT Configuration
 
 ```bash
-# RSA private key path for JWT signing (RS256 asymmetric encryption)
-# Generate key pair with: ssh-keygen -t rsa -b 2048 -m PEM -f jwtRS256.key
-# Then: openssl rsa -in jwtRS256.key -pubout -outform PEM -out jwtRS256.key.pub
-JWT_RSA_PRIVATE_KEY=/path/to/private-key.pem
+# JWT uses RS256 (RSA Signature with SHA-256) asymmetric encryption
+# Generate RSA key pair:
+openssl genrsa -out private_key.pem 2048
+openssl rsa -in private_key.pem -pubout -out public_key.pem
+openssl pkcs8 -topk8 -inform PEM -outform PEM -nocrypt -in private_key.pem -out private_key_pkcs8.pem
 
-# RSA public key path for JWT verification
-JWT_RSA_PUBLIC_KEY=/path/to/public-key.pem
+# Base64 encode keys (single line, no headers/footers):
+cat private_key_pkcs8.pem | grep -v "BEGIN" | grep -v "END" | tr -d '\n'
+cat public_key.pem | grep -v "BEGIN" | grep -v "END" | tr -d '\n'
+
+# Base64-encoded PKCS8 private key for JWT signing (user-service only)
+JWT_RSA_PRIVATE_KEY=your-base64-encoded-private-key-here
+
+# Base64-encoded public key for JWT verification (all services)
+JWT_RSA_PUBLIC_KEY=your-base64-encoded-public-key-here
 
 # Access token expiration in milliseconds (3600000 = 1 hour)
 JWT_ACCESS_TOKEN_EXPIRATION=3600000
