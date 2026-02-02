@@ -51,6 +51,10 @@ public class JwtUtil {
     return userId != null ? userId : null;
   }
 
+  public Claims getTokenClaims(String token) {
+    return extractClaims(token);
+  }
+
   private Claims extractClaims(String token) {
     return Jwts.parser().verifyWith(publicKey).build().parseSignedClaims(token).getPayload();
   }

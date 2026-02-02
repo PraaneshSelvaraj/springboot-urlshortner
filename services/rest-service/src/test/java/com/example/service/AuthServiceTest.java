@@ -26,6 +26,8 @@ class AuthServiceTest {
 
   @Mock private GrpcUserClient userClient;
 
+  @Mock private TokenBlacklistService tokenBlacklistService;
+
   @InjectMocks private AuthService authService;
 
   @Test
@@ -258,72 +260,90 @@ class AuthServiceTest {
   @DisplayName("Should logout user successfully")
   void shouldLogoutUserSuccessfully() {
     Long userId = 123L;
+    String token = "test.access.token";
 
     LogoutUserResponse grpcResponse =
         LogoutUserResponse.newBuilder().setMessage("Logout successful").setSuccess(true).build();
 
+    doNothing().when(tokenBlacklistService).blacklistToken(token, userId);
     when(userClient.logoutUser(any(LogoutUserRequest.class))).thenReturn(grpcResponse);
 
-    LogoutResponseDto result = authService.logoutUser(userId);
+    LogoutResponseDto result = authService.logoutUser(userId, token);
 
     assertThat(result).isNotNull();
     assertThat(result.getMessage()).isEqualTo("Logout successful");
     assertThat(result.isSuccess()).isTrue();
 
+    verify(tokenBlacklistService).blacklistToken(token, userId);
     verify(userClient).logoutUser(any(LogoutUserRequest.class));
   }
 
   @Test
   @DisplayName("Should throw exception when user ID is zero")
   void shouldThrowExceptionWhenUserIdIsZero() {
-    assertThatThrownBy(() -> authService.logoutUser(0L))
+    assertThatThrownBy(() -> authService.logoutUser(0L, "test.token"))
         .isInstanceOf(IllegalArgumentException.class)
         .hasMessage("Invalid user id");
 
+    verify(tokenBlacklistService, never()).blacklistToken(anyString(), any());
     verify(userClient, never()).logoutUser(any());
   }
 
   @Test
   @DisplayName("Should throw exception when user ID is negative")
   void shouldThrowExceptionWhenUserIdIsNegative() {
-    assertThatThrownBy(() -> authService.logoutUser(-1L))
+    assertThatThrownBy(() -> authService.logoutUser(-1L, "test.token"))
         .isInstanceOf(IllegalArgumentException.class)
         .hasMessage("Invalid user id");
 
+    verify(tokenBlacklistService, never()).blacklistToken(anyString(), any());
     verify(userClient, never()).logoutUser(any());
   }
 
   @Test
   @DisplayName("Should handle user not found during logout")
   void shouldHandleUserNotFoundDuringLogout() {
+    String token = "test.token";
+    doNothing().when(tokenBlacklistService).blacklistToken(token, 999L);
     when(userClient.logoutUser(any(LogoutUserRequest.class)))
         .thenThrow(Status.NOT_FOUND.withDescription("User not found").asRuntimeException());
 
-    assertThatThrownBy(() -> authService.logoutUser(999L))
+    assertThatThrownBy(() -> authService.logoutUser(999L, token))
         .isInstanceOf(NoSuchElementException.class)
         .hasMessage("User not found");
+
+    verify(tokenBlacklistService).blacklistToken(token, 999L);
   }
 
   @Test
   @DisplayName("Should handle logout gRPC exception")
   void shouldHandleLogoutGrpcException() {
+    String token = "test.token";
+    doNothing().when(tokenBlacklistService).blacklistToken(token, 1L);
     when(userClient.logoutUser(any(LogoutUserRequest.class)))
         .thenThrow(Status.UNAVAILABLE.withDescription("Service unavailable").asRuntimeException());
 
-    assertThatThrownBy(() -> authService.logoutUser(1L)).isInstanceOf(IllegalStateException.class);
+    assertThatThrownBy(() -> authService.logoutUser(1L, token))
+        .isInstanceOf(IllegalStateException.class);
+
+    verify(tokenBlacklistService).blacklistToken(token, 1L);
   }
 
   @Test
   @DisplayName("Should return success false on logout failure")
   void shouldReturnSuccessFalseOnLogoutFailure() {
+    String token = "test.token";
     LogoutUserResponse grpcResponse =
         LogoutUserResponse.newBuilder().setMessage("Logout failed").setSuccess(false).build();
 
+    doNothing().when(tokenBlacklistService).blacklistToken(token, 1L);
     when(userClient.logoutUser(any(LogoutUserRequest.class))).thenReturn(grpcResponse);
 
-    LogoutResponseDto result = authService.logoutUser(1L);
+    LogoutResponseDto result = authService.logoutUser(1L, token);
 
     assertThat(result.isSuccess()).isFalse();
     assertThat(result.getMessage()).isEqualTo("Logout failed");
+
+    verify(tokenBlacklistService).blacklistToken(token, 1L);
   }
 }

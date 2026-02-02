@@ -30,6 +30,8 @@ class NotificationControllerTest {
 
   @MockBean private com.example.util.JwtUtil jwtUtil;
 
+  @MockBean private com.example.service.TokenBlacklistService tokenBlacklistService;
+
   @Test
   @WithMockUser(roles = "ADMIN")
   @DisplayName("Should get paginated notifications successfully")

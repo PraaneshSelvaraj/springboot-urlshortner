@@ -34,6 +34,8 @@ class UrlControllerTest {
 
   @MockBean private com.example.util.JwtUtil jwtUtil;
 
+  @MockBean private com.example.service.TokenBlacklistService tokenBlacklistService;
+
   @Test
   @DisplayName("Should return health status successfully")
   void shouldReturnHealthStatusSuccessfully() throws Exception {

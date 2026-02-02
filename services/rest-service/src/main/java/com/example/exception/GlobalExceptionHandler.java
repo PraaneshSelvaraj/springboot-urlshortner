@@ -83,6 +83,15 @@ public class GlobalExceptionHandler {
     return new ResponseEntity<>(error, HttpStatus.UNAUTHORIZED);
   }
 
+  @ExceptionHandler(TokenBlacklistException.class)
+  public ResponseEntity<ErrorResponse> handleTokenBlacklistException(
+      TokenBlacklistException ex, WebRequest request) {
+    ErrorResponse error =
+        new ErrorResponse(
+            HttpStatus.SERVICE_UNAVAILABLE.value(), "Logout service temporarily unavailable");
+    return new ResponseEntity<>(error, HttpStatus.SERVICE_UNAVAILABLE);
+  }
+
   @ExceptionHandler(Exception.class)
   public ResponseEntity<ErrorResponse> handleGlobalException(Exception ex, WebRequest request) {
     ErrorResponse error =

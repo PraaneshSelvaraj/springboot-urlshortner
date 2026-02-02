@@ -1,6 +1,7 @@
 package com.example.filter;
 
 import com.example.security.UserPrincipal;
+import com.example.service.TokenBlacklistService;
 import com.example.util.JwtUtil;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -19,9 +20,11 @@ import org.springframework.web.filter.OncePerRequestFilter;
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
   private final JwtUtil jwtUtil;
+  private final TokenBlacklistService tokenBlacklistService;
 
-  public JwtAuthenticationFilter(JwtUtil jwtUtil) {
+  public JwtAuthenticationFilter(JwtUtil jwtUtil, TokenBlacklistService tokenBlacklistService) {
     this.jwtUtil = jwtUtil;
+    this.tokenBlacklistService = tokenBlacklistService;
   }
 
   @Override
@@ -37,6 +40,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
       }
 
       String token = authHeader.substring(7);
+      if (tokenBlacklistService.isTokenBlacklisted(token)) {
+        filterChain.doFilter(request, response);
+        return;
+      }
+
       if (jwtUtil.validateToken(token)) {
         Long userId = jwtUtil.extractUserId(token);
         String email = jwtUtil.extractEmail(token);
@@ -62,7 +70,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         SecurityContextHolder.getContext().setAuthentication(authentication);
       }
     } catch (Exception e) {
-      logger.error("Cannot set user authentication", e);
     }
 
     filterChain.doFilter(request, response);

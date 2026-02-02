@@ -26,6 +26,8 @@ class GlobalExceptionHandlerTest {
 
   @MockBean private com.example.util.JwtUtil jwtUtil;
 
+  @MockBean private com.example.service.TokenBlacklistService tokenBlacklistService;
+
   @Test
   @DisplayName("Should handle InvalidUrlException and return 400 BAD REQUEST")
   void shouldHandleInvalidUrlExceptionAndReturn400() throws Exception {

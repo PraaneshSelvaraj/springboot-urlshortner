@@ -17,6 +17,20 @@ services:
       timeout: 5s
       retries: 5
 
+  redis:
+    image: redis:7-alpine
+    container_name: redis-service
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
   notification-service:
     build:
       context: ./services
@@ -51,6 +65,8 @@ services:
       DB_USERNAME: ${DB_USERNAME}
       DB_PASSWORD: ${DB_PASSWORD}
       JWT_RSA_PUBLIC_KEY: ${JWT_RSA_PUBLIC_KEY}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
       GRPC_NOTIFICATION_HOST: notification-service
       GRPC_NOTIFICATION_PORT: ${NOTIFICATION_GRPC_PORT}
       GRPC_USER_HOST: user-service
@@ -62,6 +78,8 @@ services:
       REST_SERVICE_PORT: ${REST_SERVICE_PORT}
     depends_on:
       mysql:
+        condition: service_healthy
+      redis:
         condition: service_healthy
       notification-service:
         condition: service_started
@@ -93,3 +111,4 @@ services:
 
 volumes:
   mysql-data:
+  redis-data:

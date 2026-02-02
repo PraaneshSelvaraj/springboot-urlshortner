@@ -44,6 +44,8 @@ class AuthControllerTest {
 
   @MockBean private com.example.util.JwtUtil jwtUtil;
 
+  @MockBean private com.example.service.TokenBlacklistService tokenBlacklistService;
+
   @BeforeEach
   void setUp() {
     SecurityContextHolder.clearContext();
@@ -307,18 +309,19 @@ class AuthControllerTest {
   @Test
   @DisplayName("Should logout user successfully")
   void shouldLogoutUserSuccessfully() throws Exception {
-    // Setup authenticated user
+    // Setup authenticated user with token in credentials
     UserPrincipal principal = new UserPrincipal(123L, "test@example.com", "USER");
+    String token = "test.access.token";
     UsernamePasswordAuthenticationToken auth =
         new UsernamePasswordAuthenticationToken(
-            principal, null, List.of(new SimpleGrantedAuthority("ROLE_USER")));
+            principal, token, List.of(new SimpleGrantedAuthority("ROLE_USER")));
     SecurityContextHolder.getContext().setAuthentication(auth);
 
     // Mock service response
     LogoutResponseDto response = new LogoutResponseDto();
     response.setSuccess(true);
     response.setMessage("Logout successful");
-    when(authService.logoutUser(123L)).thenReturn(response);
+    when(authService.logoutUser(123L, token)).thenReturn(response);
 
     // Perform request with authenticated context
     mockMvc
@@ -327,42 +330,45 @@ class AuthControllerTest {
         .andExpect(jsonPath("$.success").value(true))
         .andExpect(jsonPath("$.message").value("Logout successful"));
 
-    verify(authService).logoutUser(123L);
+    verify(authService).logoutUser(123L, token);
   }
 
   @Test
   @DisplayName("Should handle service exception during logout")
   void shouldHandleServiceExceptionDuringLogout() throws Exception {
-    // Setup authenticated user
+    // Setup authenticated user with token
     UserPrincipal principal = new UserPrincipal(123L, "test@example.com", "USER");
+    String token = "test.access.token";
     UsernamePasswordAuthenticationToken auth =
         new UsernamePasswordAuthenticationToken(
-            principal, null, List.of(new SimpleGrantedAuthority("ROLE_USER")));
+            principal, token, List.of(new SimpleGrantedAuthority("ROLE_USER")));
     SecurityContextHolder.getContext().setAuthentication(auth);
 
     // Mock service to throw exception
-    when(authService.logoutUser(123L)).thenThrow(new RuntimeException("Service error"));
+    when(authService.logoutUser(123L, token)).thenThrow(new RuntimeException("Service error"));
 
     // Perform request
     mockMvc
         .perform(post("/api/auth/logout").principal(auth))
         .andExpect(status().isInternalServerError());
 
-    verify(authService).logoutUser(123L);
+    verify(authService).logoutUser(123L, token);
   }
 
   @Test
   @DisplayName("Should handle user not found during logout")
   void shouldHandleUserNotFoundDuringLogout() throws Exception {
-    // Setup authenticated user
+    // Setup authenticated user with token
     UserPrincipal principal = new UserPrincipal(999L, "test@example.com", "USER");
+    String token = "test.access.token";
     UsernamePasswordAuthenticationToken auth =
         new UsernamePasswordAuthenticationToken(
-            principal, null, List.of(new SimpleGrantedAuthority("ROLE_USER")));
+            principal, token, List.of(new SimpleGrantedAuthority("ROLE_USER")));
     SecurityContextHolder.getContext().setAuthentication(auth);
 
     // Mock service to throw NoSuchElementException
-    when(authService.logoutUser(999L)).thenThrow(new NoSuchElementException("User not found"));
+    when(authService.logoutUser(999L, token))
+        .thenThrow(new NoSuchElementException("User not found"));
 
     // Perform request
     mockMvc
@@ -370,6 +376,6 @@ class AuthControllerTest {
         .andExpect(status().isNotFound())
         .andExpect(jsonPath("$.message").value("User not found"));
 
-    verify(authService).logoutUser(999L);
+    verify(authService).logoutUser(999L, token);
   }
 }

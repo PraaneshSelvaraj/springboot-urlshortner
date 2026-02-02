@@ -12,9 +12,11 @@ import org.springframework.stereotype.Service;
 @Service
 public class AuthService {
   private final GrpcUserClient userClient;
+  private final TokenBlacklistService tokenBlacklistService;
 
-  public AuthService(GrpcUserClient userClient) {
+  public AuthService(GrpcUserClient userClient, TokenBlacklistService tokenBlacklistService) {
     this.userClient = userClient;
+    this.tokenBlacklistService = tokenBlacklistService;
   }
 
   public LoginResponseDto userLogin(String email, String password) {
@@ -83,11 +85,13 @@ public class AuthService {
     }
   }
 
-  public LogoutResponseDto logoutUser(Long userId) {
+  public LogoutResponseDto logoutUser(Long userId, String token) {
     try {
       if (userId <= 0) {
         throw new IllegalArgumentException("Invalid user id");
       }
+
+      tokenBlacklistService.blacklistToken(token, userId);
 
       LogoutUserRequest request = LogoutUserRequest.newBuilder().setId(userId).build();
       LogoutUserResponse response = userClient.logoutUser(request);

@@ -37,6 +37,8 @@ class UserControllerTest {
 
   @MockBean private com.example.util.JwtUtil jwtUtil;
 
+  @MockBean private com.example.service.TokenBlacklistService tokenBlacklistService;
+
   @Test
   @DisplayName("Should create user successfully")
   void shouldCreateUserSuccessfully() throws Exception {
