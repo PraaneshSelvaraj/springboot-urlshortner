@@ -15,7 +15,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.test.web.servlet.MockMvc;
 
-@WebMvcTest(UrlController.class)
+@WebMvcTest(controllers = UrlController.class, excludeFilters = @org.springframework.context.annotation.ComponentScan.Filter(type = org.springframework.context.annotation.FilterType.ASSIGNABLE_TYPE, classes = com.example.filter.RateLimitFilter.class))
 @AutoConfigureMockMvc(addFilters = false)
 @DisplayName("GlobalExceptionHandler Tests")
 class GlobalExceptionHandlerTest {
@@ -182,5 +182,22 @@ class GlobalExceptionHandlerTest {
         .perform(get("/api/urls").param("pageNo", "0").param("pageSize", "10"))
         .andExpect(status().isInternalServerError())
         .andExpect(jsonPath("$.message").value("An unexpected error occurred: " + customMessage));
+  }
+
+  @Test
+  @DisplayName("Should handle RateLimitExceededException and return 429 TOO MANY REQUESTS")
+  void shouldHandleRateLimitExceededExceptionAndReturn429() throws Exception {
+    String errorMessage = "Rate limit exceeded. Maximum 10 requests per 60 seconds.";
+
+    Mockito.when(urlService.addUrl(Mockito.anyString()))
+        .thenThrow(new RateLimitExceededException(errorMessage));
+
+    String requestBody = "{\"url\":\"https://example.com\"}";
+
+    mockMvc
+        .perform(post("/api/urls").contentType("application/json").content(requestBody))
+        .andExpect(status().isTooManyRequests())
+        .andExpect(jsonPath("$.status").value(429))
+        .andExpect(jsonPath("$.message").value(errorMessage));
   }
 }

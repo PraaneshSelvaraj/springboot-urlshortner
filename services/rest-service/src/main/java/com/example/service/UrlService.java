@@ -46,6 +46,8 @@ public class UrlService {
   }
 
   public UrlDto addUrl(String url) {
+    long userId = UserContext.getCurrentUserId();
+
     if (!isValidUrl(url)) {
       throw new InvalidUrlException();
     }
@@ -53,8 +55,6 @@ public class UrlService {
     String code = generateShortCode(7);
     LocalDateTime currentTime = LocalDateTime.now();
     LocalDateTime expiresAt = currentTime.plusHours(urlExpirationHours);
-
-    long userId = UserContext.getCurrentUserId();
 
     Url newUrl = new Url();
     newUrl.setShortCode(code);
@@ -65,7 +65,6 @@ public class UrlService {
     newUrl.setCreatedAt(currentTime);
     newUrl.setUpdatedAt(currentTime);
     newUrl.setExpiresAt(expiresAt);
-
     Url urlAdded = urlRepo.save(newUrl);
     notificationService.sendUrlCreatedNotification(code, url);
 
@@ -197,13 +196,14 @@ public class UrlService {
   }
 
   public void deleteUrl(String shortCode) {
+    long userId = UserContext.getCurrentUserId();
+
     Optional<Url> urlOpt = urlRepo.findByShortCode(shortCode);
 
     Url url =
         urlOpt.orElseThrow(
             () -> new NoSuchElementException("URL with short code '" + shortCode + "' not found"));
 
-    long userId = UserContext.getCurrentUserId();
     String userRole = UserContext.getCurrentUserRole();
     if (userRole.equalsIgnoreCase("user") && userId != url.getCreatedBy()) {
       throw new AccessDeniedException("You do not have permission to view this URL");

@@ -1,0 +1,15 @@
+rate-limit:
+  rules:
+    - method: POST
+      pathPattern: /api/urls
+      maxRequests: 10
+      windowSeconds: 60
+      keyPrefix: ratelimit:url:create
+      description: URL creation rate limit
+
+    - method: DELETE
+      pathPattern: /api/urls/**
+      maxRequests: 10
+      windowSeconds: 60
+      keyPrefix: ratelimit:url:delete
+      description: URL deletion rate limit

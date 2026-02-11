@@ -19,7 +19,7 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 
-@WebMvcTest(NotificationController.class)
+@WebMvcTest(controllers = NotificationController.class, excludeFilters = @org.springframework.context.annotation.ComponentScan.Filter(type = org.springframework.context.annotation.FilterType.ASSIGNABLE_TYPE, classes = com.example.filter.RateLimitFilter.class))
 @AutoConfigureMockMvc(addFilters = false)
 @DisplayName("NotificationController Tests")
 class NotificationControllerTest {

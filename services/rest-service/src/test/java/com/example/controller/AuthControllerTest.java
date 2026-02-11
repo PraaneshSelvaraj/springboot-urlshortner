@@ -31,7 +31,7 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.web.servlet.MockMvc;
 
-@WebMvcTest(controllers = AuthController.class)
+@WebMvcTest(controllers = AuthController.class, excludeFilters = @org.springframework.context.annotation.ComponentScan.Filter(type = org.springframework.context.annotation.FilterType.ASSIGNABLE_TYPE, classes = com.example.filter.RateLimitFilter.class))
 @AutoConfigureMockMvc(addFilters = false)
 @DisplayName("AuthController Tests")
 class AuthControllerTest {
